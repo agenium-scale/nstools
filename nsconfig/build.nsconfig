@@ -1,0 +1,117 @@
+# MIT License
+#
+# Copyright (c) 2019 Agenium Scale
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+set o         = @obj_ext
+set lib       = @shared_link_ext
+set exe       = @exe_ext
+set so        = @shared_lib_ext
+set build_dir = @build_dir
+set asm       = @asm_ext
+set prefix    = @prefix
+
+set ccomp_suite   = @ccomp_suite
+set ccomp_path    = @ccomp_path
+set cppcomp_suite = @cppcomp_suite
+set cppcomp_path  = @cppcomp_path
+
+#package_name foo
+
+set flags_for_sse = SSE
+set flags_for_avx = AVX
+set flags_for_sve = SVE
+
+ifnot_set "helper of aaa" aaa = 000
+ifnot_set "helper of bbb" bbbbbb = 111
+ifnot_set "helper of ccc" cccccccc = 222
+ifnot_set "helper of ddd" dddddddddd = 333
+
+find_lib import fake = fake.h fake foo
+echo $fake.flags
+echo $fake.deps
+
+install_file foo.txt foo
+install_dir  bar     bar
+
+echo aaa = $aaa
+
+echo Installation prefix = @prefix
+
+set simd = sse
+
+echo SIMD extension = ${flags_for_$simd$}
+echo Build dir = @build_dir
+
+set root = @source_dir
+echo Source directory = '$root$'
+
+glob headers = *.hpp
+echo headers = $headers
+
+getenv home = HOME
+echo HOME = $home
+
+echo ASM extension = $asm
+
+find_exe bash = bash
+echo bash is in '$bash.dir$'
+
+find_header optional glog = glog/glog.h
+
+echo o = $o
+echo lib = $lib
+echo exe = $exe
+echo so = $so
+
+echo ccomp_suite = @ccomp_suite
+echo ccomp_path = @ccomp_path
+echo cppcomp_suite = @cppcomp_suite
+echo cppcomp_path = @cppcomp_path
+
+find_lib optional mpfr = mpfr.h mpfr $root$/../_install
+echo "MPFR = $mpfr.flags$"
+
+#build_file libmylib$so deps mylib.cpp
+#	[*:T] c++ -Dtoto -mavx512_skylake -O3 mylib.cpp -o libmylib$so
+#	[*:R] icc -mavx512 sdfgsdfg
+
+build_files optional myexe foreach glob:$root$/*.cpp as %r$exe autodeps @item
+	c++ -std=c++11 -O3 @item -o @out
+
+[L] build_files optional myexe2 foreach popen:"ls -1 *.hpp" as %r2$exe
+[W] build_files optional myexe2 foreach popen:"dir /B *.hpp" as %r2$exe
+	[*:R] python script.py @in -o @out
+
+#set eol = .json foreac $myexe_files
+
+build_files optional myjsons foreach $myexe.files as %r.json
+#build_files optional "" myjsons $eol
+	[W] c++ -std=c++11 -O3 @item -o @out
+	[*:R] python alsdfkjfh
+
+
+build_file a/myexe$exe deps libmylib$lib $myexe.files$ foo.c
+	[*:P] c++ -O3 @in -extra-flag-for-debug -lmylib -l:asdf.dll -o @out
+
+find_exe optional pandoc = pandoc
+
+build_file doc deps doc.md
+	[*:P] if "$pandoc$" != "" ( pandoc @in -o @out ) else ( echo "pandoc not found" )

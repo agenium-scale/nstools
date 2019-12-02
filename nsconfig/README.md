@@ -1,0 +1,521 @@
+Overview
+========
+
+nsconfig is a replacement for CMake and other so called meta build systems.
+You have to think of nsconfig as a Makefile translator rather than a Makefile
+generator.
+
+For now it supports output to POSIX Makefile, MSVC NMake Makefiles,
+GNU Makefiles and Ninja build file. You write a "build.nsconfig" file and then
+nsconfig will parse it and generate the requested make/nmake/ninja file.
+
+nsconfig is designed to be portable accross Linux and Windows and to support
+several compilers: GCC/Clang, MSVC and ICC.
+
+    set exe    = @exe_ext
+    set o      = @obj_ext
+    set root   = @source_dir
+    set cflags = -Wall -O2
+
+    # Compile each .cpp file into an object file
+    build_files foo foreach glob:%root%/*.cpp as %b$o
+            c++ $cflags @item -c -o @out
+ 
+    # Link all object files together
+    build_file foo$exe deps $foo.files
+            c++ $foo_files -o @out
+
+Once your build.nsconfig is written simply call nsconfig as you would CMake.
+
+    $ mkdir build
+    $ cd build
+    $ nsconfig ..
+    $ ninja
+
+By default three rules will be generated:
+
+- `all`: will by default generates all non-phony targets.
+- `clean`: will clean all built files by non-phony targets.
+- `update`: will re-execute nsconfig with the arguments that were used to
+  generate the Makefile/Ninja build file.
+
+License
+=======
+
+MIT License
+
+Copyright (c) 2019 Agenium Scale
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+nsconfig command line switches
+==============================
+
+-Ggenerator   Choose which generator to use. Supported generators:
+              * make        POSIX Makefile
+              * gnumake     GNU Makefile
+              * nmake       Microsot Visual Stusdio NMake Makefile
+              * ninja       Ninja build file (this is the default)
+              * list-vars   List project specific variables
+
+-Dvar=value   Affect value `value` to variable named `var` for the
+              build.nsconfig files. It can be accessed with `%var%`.
+
+-list-vars    List variables specific to a project. The list of variables
+              simply consists of those that are in ifnot_set.
+
+-ooutput      Instead of writing its output to the default file
+              (`build.ninja` for Ninja, Makefile for the other generators)
+              write the output to the file named `output`.
+
+-comp=type    Tell nsconfig that the default C and C++ compilers are of type
+              `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type
+              must be one of the following:
+              * gcc         GNU Compiler Collection
+              * clang       LLVM Compiler Infrastructure
+              * msvc        Microsoft Visual C++
+              * armclang    ARM Compiler
+              * icc         Intel C/C++ Compiler
+
+-ccomp=type,path
+              Tell nsconfig that the default C compiler is of type `type`
+              can be found at `path` (which can be a relative or an absolute
+              path). All invocations of `cc` in any command that has to be
+              translated will refer to the specified compiler. The type must be
+              one of the following:
+              * gcc         GNU Compiler Collection
+              * clang       LLVM Compiler Infrastructure
+              * msvc        Microsoft Visual C++
+              * armclang    ARM Compiler
+              * icc         Intel C/C++ Compiler
+
+-cppcomp=type,path
+              Tell nsconfig that the default C++ compiler is of type `type`
+              can be found at `path` (which can be a relative or an absolute
+              path). All invocations of `c++` in any command that has to be
+              translated will refer to the specified compiler. The type must be
+              one of the following:
+              * gcc         GNU Compiler Collection
+              * clang       LLVM Compiler Infrastructure
+              * msvc        Microsoft Visual C++
+              * armclang    ARM Compiler
+              * icc         Intel C/C++ Compiler
+
+-nodev        Deactivate the fact that all rules depends on the Makefile or
+              build.ninja file itself to allow automatic regeneration. This
+              is useful if you intend to provide the Makefile or build.ninja
+              to a third party.
+
+-prefix=prefix
+              Tell nsconfig that prefix for installation of the project is
+              `prefix`. If none is given default is `/opt/local` on Linux
+              and `C:\Program Files` on Windows.
+
+--help        Print a quick help on stdout.
+
+nsconfig file reference
+=======================
+
+Each line can be prefixed by `[S:TR]` where `S` indicates the system on
+which the line will be parsed and `TR` indicates what kind of sheel command
+translation is requested.
+
+`S` can have the following values:
+
+- `W`: line only available on Windows.
+- `L`: line only available on Linux
+- `*`: line available on all systems.
+
+`TR` can have the following values:
+
+`T`: translate shell commands and stop when cannot.
+`P`: translate shell commands when possible otherwise, copy as-is.
+`R`: copy as-is shell commands.
+
+`disable_all`
+-------------
+
+Disable automatic generation of the `all` rule.
+
+`disable_clean`
+---------------
+
+Disable automatic generation of the `clean` rule.
+
+`disable_update`
+----------------
+
+Disable automatic generation of the `update` rule.
+
+`disable_package`
+-----------------
+
+Disable automatic generation of the `package` rule.
+
+`disable_install`
+-----------------
+
+Disable automatic generation of the `install` rule.
+
+`set var = value`
+-----------------
+
+Set value of variable `var` to `value`. `Value` can be one of the following.
+
+* `@source_dir`: resolve to the absolute directory where the `build.nsconfig`
+                 file is.
+* `@build_dir`: resolve to the absolute directory where the project is being
+                built.
+* `@obj_ext`: object file extension, usually ".o" on Linux and ".obj" on
+              Windows.
+* `@asm_ext`: assembly file extension, usually ".s" on Linux and ".asm" on
+              Windows.
+* `@static_lib_ext`: static library extension, usually ".a" on Linux and ".lib"
+                     on Windows.
+* `@shared_lib_ext`: shared library extension, usually ".so" on Linux and
+                     ".dll" on Windows.
+* `@shared_link_ext`: extension of the file to pass the compiler in order to
+                      link against a library, usually ".so" on Linux and ".lib"
+                      on Windows.
+* `@exe_ext`: extension of an executable, usually "" on Linux and ".exe" on
+              Windows.
+* `@prefix`: Installation prefix as given by the `-prefix` command-line switch.
+
+`package_name`
+--------------
+
+Set package name for the project. On Linux the automatic generation of the
+`package` target will produce a `.tar.bz2` file on Linux while on Windows
+a `.zip` file will be produced. The content of the archive is determined by
+the `install` commands.
+
+`install_file file1 ... fileN relative_path`
+--------------------------------------------
+
+Tell nsconfig to add `file1`, ..., `fileN` for package creation and project
+installation. For installation, nsconfig will install the given files into
+`prefix/relative_path` where `prefix` is the installation prefix as given by
+the command-line switch `-prefix`. For package creation, nsconfig will copy the
+given files into the archive at `package_name/relative_path` where
+`package_name` is the package name given by the `package_name` command.
+
+`install_dir dir1 ... dirN relative_path`
+-----------------------------------------
+
+Same as `install_file` except that `dir1`, ..., `dirN` must be directories.
+
+`ifnot_set description var = value`
+-----------------------------------
+
+Same as `set` above except that `var` is set only if has not been set yet and
+map the given `description` to  `var`. The idea is that `ifnot_set` is mainly
+used for setting variables that have not been defined on command line by the
+end-user with a default value. Therefore we force the programmer to give
+a one-liner help that is obtained by `nsconfig -list-vars`.
+
+`glob var = glob1 glob2 ... globN`
+----------------------------------
+
+Set value of variable `var` to the list of files computed from the globbing
+`glob1`, `glob2`, ..., `globN`.
+
+`getenv var = env`
+------------------
+
+Set value of variable `var` to the value of the environment variable `env`.
+
+`build_file output (deps | autodeps) dep1 dep2 ... depN`
+--------------------------------------------------------
+
+Generate a target with its dependencies. The target will be named `output` and
+its dependencies `dep1`, `dep2`, ..., `depN`. When `autodeps` is used, nsconfig
+will generate extra code for handling automatic C/C++ header dependencies. This
+feature is only available with Ninja combined with GCC/Clang or MSVC.
+
+`phony output (deps | autodeps) dep1 dep2 ... depN`
+---------------------------------------------------
+
+Generate a phony target with its dependencies. The target will be named
+`output` and its dependencies `dep1`, `dep2`, ..., `depN`. When `autodeps` is
+used, nsconfig will generate extra code for handling automatic C/C++ header
+dependencies. This feature is only available with Ninja combined with GCC/Clang
+or MSVC.
+
+`build_files [optional] var foreach globs as format [(deps | autodeps) [dep1 dep2 ... depN]]`
+---------------------------------------------------------------------------------------------
+
+`Globs` can be one or more space-separated filenames, globbing expressions or
+command line calls. Globing expression must be prefixed by `glob:`. Command
+line calls must be prefixed by `popen:`. For exemple if you want to glob all
+C++ source files and then get symbols in each of them:
+
+    build_files objects foreach glob:*.cpp as %b.o deps @item
+      c++ @item -c -o @out
+
+    build_files symbols foreach %objects.files as %b.o deps @item
+      nm @item > @out
+
+For each file given in `globs` generate a target whose name follows `format`
+whose details are given below and dependencies are the file specified by
+`@item`, `dep1`, `dep2`, ..., `depN`. If you want to get the list of inputs
+from a command.
+
+    build_files objects foreach popen:"python2 script.py --get-list" \
+                as %b.txt deps @item
+      c++ @item -c -o @out
+
+    build_files symbols foreach $objects.files as %b.txt deps @item
+      nm $item > $out
+
+To get the list of files from the given command, nsconfig treats stdout and
+stderr only when the command return code is 0, in the following way:
+
+- At most one file must be specified by line.
+- Empty lines are ignored.
+- Lines beginning with a '#' are ignored.
+- Filenames can be split in half by a ';' say `/dir1/dir2;dir3/file` in which
+  case input will be `/dir1/dir2/dir3/file` and output will be
+  `[prefix]dir3.file[suffix]`.
+- If file is not split in half say `/dir1/dir2/dir3/file` in which case input
+  will be `/dir1/dir2/dir3/file` and output will be `[prefix]file[suffix]`.
+
+If no file is found from the globbings then no error is reported if `optional`
+is given.
+
+After havig parsing this rule the following variables will be available in
+the nsconfig file:
+
+- `[var].files`: the list of all output files (or targets).
+
+When `autodeps` is used, nsconfig will generate extra code for handling
+automatic C/C++ header dependencies. This feature is only available with Ninja
+combined with GCC/Clang or MSVC.
+
+The `format` follows a printf like syntax. The output name of each generated
+file will be format except that:
+- `%b` will be replaced by the basename of the input (with the extension),
+- `%r` will be replaced by the root filename of the input and
+- `%e` will be replaced by the extension of the input.
+
+`find_exe [optional] var = exe path1 path2 ... pathN`
+-----------------------------------------------------
+
+Find an executable named `exe` (no need for the ".exe" extension on Windows)
+in `path1`, `path2`, ..., `pathN` first then in the directories from the `PATH`
+environment variable.
+
+After havig parsing this rule the following variables will be available in
+the nsconfig file:
+
+- `[var]`: the full path for the executable or empty if it was not found.
+- `[var].dir`: the directory where the executable was found or empty if it
+  was not found.
+
+`find_header [optional] var = header path1 path2 ... pathN`
+-----------------------------------------------------------
+
+Find a header file named `header` (no need for the extension) in `path1`,
+`path2`, ..., `pathN`.
+
+After havig parsing this rule the following variables will be available in
+the nsconfig file:
+
+- `[var].flags`: the flags to pass to a compiler in order to compile with
+  this header, usually contains "-DHAS_HEADER -Iheader_dir"; or empty if it
+  was not found.
+- `[var].cflags`: same as `[var]_flags`.
+- `[var].dir`: the directory where the header was found or empty if it
+  was not found.
+
+`find_lib [optional] [dynamic | static] var = lib.h name path1 path2 ... pathN`
+-------------------------------------------------------------------------------
+
+Find a library named `name` (no need for the "lib" prefix or the extension)
+in paths `path1`, `path2`, ..., `pathN` whose corresponding header file is
+named `lib.h`. Note that the binary will be search in `pathX/lib` and
+`pathX/lib64` while the header will be searched in `pathX/include`.
+
+After havig parsing this rule the following variables will be available in
+the nsconfig file:
+
+- `[var].header_dir`: the directory where the header was found or empty if it
+  was not.
+- `[var].lib_dir`: the directory where the binary was found or empty if it was
+  not.
+- `[var].cflags`: the compilation flags to give a compiler in order to compile
+  against the library, usually contains "-DHAS_NAME -Iinclude/dir" or empty if
+  it was not found.
+- `[var].ldflags`: the linker flags to give a linker in order to compile
+  against the library, usually contains "-Llib/dir -lname" or empty if it was
+  not found.
+- `[var].flags`: the concatenation of `[var].cflags` and `[var].ldflags`.
+
+`echo some test`
+----------------
+
+Print to stdout `text`, useful for debugging.
+
+`include file1 file2 ... fileN`
+-------------------------------
+
+Includes "à la C" the content of the files `file1`, `file2`, ..., `fileN` into
+the calling nsconfig file.
+
+nsconfig shell commands reference
+=================================
+
+The following shell commands are recognized by nsconfig and will translated
+into the OS native shell (sh for Linux and cmd.exe for Windows). Commands
+can be chained with `&&`, `||` and `;` which have their usual meanings:
+
+- `cmd1 && cmd2`: execute `cmd1` and then execute `cmd2` only if `cmd1` has
+  returned a zero code.
+- `cmd1 || cmd2`: execute `cmd1` and then execute `cmd2` only if `cmd1` has
+  returned a nonzero code.
+- `cmd1 ; cmd2`: execute `cmd1` and then execute `cmd2` whatever is the return
+  code of `cmd1`.
+
+You can also use redirections `>`, `>>` and `|` with their usual meanings:
+
+- `cmd > file`: redirect output of `cmd` to `file` by replacing its original
+  content.
+- `cmd >> file`: redirect output of `cmd` to `file` by appending to its
+  original content.
+- `cmd1 | cmd2`: redirect output of `cmd1` to input of `cmd2`.
+
+Any restrictions in the following commands come from the OS native shells. For
+example cmd.exe cannot touch several files in one command so only one file
+is supported fir this command by nsconfig.
+
+By default commands will be translated and an error will be thrown if nsconfig
+cannot translate one. If the use of other commands is needed then use the
+line prefixes `[*:P]` or `[*:R]`.
+
+`cd dir`
+--------
+
+Change current directory to `dir`.
+
+`touch file`
+------------
+
+Touch `file`.
+
+`rm [-r] path1 path2 ... pathN`
+-------------------------------
+
+Force remove (recursively if `-r` is present) `path1`, `path2`, ..., `pathN`.
+
+`cp [-r] path1 path2 ... pathN dest`
+------------------------------------
+
+Force copy (recursively if `-r` is present) `path1`, `path2`, ..., `pathN` to
+`dest`.
+
+`mkdir dir`
+-----------
+
+Force create the directory `dir`. Note that any intermediate directory will
+be created.
+
+`cat file1 file2 ... fileN`
+---------------------------
+
+Output the content of `file1`, `file2`, ..., `fileN` to stdout.
+
+`echo text`
+-----------
+
+Output `text` to stdout
+
+`mv path dest`
+--------------
+
+Move `path` to `dest`.
+
+`if str1 op str2 ( cmd1 ) [ else ( cmd2 ) ]`
+--------------------------------------------
+
+`Op` can be either `==` or `!=`. Execute `cmd1` if the condition `str1 op str2`
+is true. If the condition is false and an `else` is present then execute
+`cmd2`.
+
+`compiler options file1 file2 ... fileN`
+----------------------------------------
+
+`Compiler` can be one of the following:
+
+- `cc`
+- `c++`
+- `gcc`
+- `g++`
+- `clang`
+- `clang++`
+- `msvc`
+- `icc`
+
+If the compiler is `cc` or `c++` nsconfig will try to find the native compiler
+of the system it is running on. On Linux, Clang will be the first choice then
+GCC. On Windows MSVC will be the first choice, then Clang and then GCC.
+
+Compile `file1`, `file2`, ..., `fileN`. Several options can be given to the
+compiler:
+
+- `-std=c89`: compile using the C89 standard. All "-std=*" add "-pedantic"
+  option. 
+- `-std=c99`: compile using the C99 standard.
+- `-std=c++98`: compile using the C++98 standard.
+- `-std=c++03`: compile using the C++03 standard.
+- `-std=c++11`: compile using the C++11 standard.
+- `-std=c++14`: compile using the C++14 standard.
+- `-std=c++17`: compile using the C++17 standard.
+- `-O1`: compile using level 1 optimizations.
+- `-O2`: compile using level 2 optimizations.
+- `-O3`: compile using level 3 optimizations.
+- `-ffast-math`: compile using non C/C++/IEEE754 conforming optimizations
+- `-g`: compile with debug informations.
+- `-c`: compile only, do not link.
+- `-S`: generate assembly code.
+- `-o file`: output to `file`.
+- `-Wall`: compile with all warnings.
+- `-fPIC`: emit position independant code.
+- `-msse`: enable SSE extension.
+- `-msse2`: enable SSE2 extension.
+- `-msse3`: enable SSE3 extension.
+- `-mssse3`: enable SSSE3 extension.
+- `-msse41`: enable SSE41 extension.
+- `-msse42`: enable SSE42 extension.
+- `-mavx`: enable AVX extension.
+- `-mavx2`: enable AVX2 extension.
+- `-mavx512_knl`: enable AVX512 extensions as found on KNL chips.
+- `-mavx512_skylake`: enable AVX512 extensions as found on Skylake chips.
+- `-mfma`: enable FMAs.
+- `-mfp16`: enable native FP16 support.
+- `-fopenmp`: enable handling of OpenMP directives.
+- `-shared`: creates a dynamic linked library.
+- `-lpthread`: adds support for multithreading with the pthreads library.
+- `-lm`: links against the Math library.
+- `-Idir`: add the `dir` to the list of directories to be searched for headers.
+- `-lfoo`: links against the foo library (libfoo.so on Linux, libfoo.dll on
+  Windows).
+- `-l:foo.ext`: links against the `foo.ext` file.
+- `-Ldir`: add `dir` to the list of directories to be searched for `-l`.
+- `-L$ORIGIN`: tell the linker to link against libraries in the same folder
+  as the binary.
+- `--version`: display compiler version and ignore all other flags.

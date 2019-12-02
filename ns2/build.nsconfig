@@ -1,0 +1,82 @@
+## Get OS/Compiler specific file extensions
+set o     = @obj_ext
+set exe   = @exe_ext
+set so    = @shared_lib_ext
+set a     = @static_lib_ext
+set lib   = @shared_link_ext
+set root  = @source_dir
+
+#ifnot_set "Directory prefix for external deps" extern_dir = $root$/../_install
+
+# Compiler flags
+set flags = -Wall -fPIC -O3 -g -I$root$/include -DNS_COMPILING_LIBRARY
+[L] set ldflags = -shared
+[W] set ldflags = -shared -l:Shlwapi.lib -l:Dbghelp.lib
+
+# ------------------------------------------------------------------------------
+
+# Build library
+
+build_files obj foreach glob:$root$/src/*.cpp as %r$o deps @item
+	c++ -c @item $flags$ -std=c++11 -o @out
+
+build_file libns2$so deps $obj.files
+	c++ @in -o @out $ldflags$ $flags$
+
+build_file libns2$a deps $obj.files
+	[L:R] ar rcs @out @in
+
+# ------------------------------------------------------------------------------
+
+# Install/Package library
+
+install_file libns2$so lib
+[L] install_file libns2$a lib
+[W] install_file libns2$lib lib
+install_dir $root$/include .
+
+# ------------------------------------------------------------------------------
+
+# Build tests
+
+set tests_flags = -O3 -g -Wall -L. -lns2 -I$root$/include \
+                  -DMARKDOWN_DIR=\"$root$/tests/markdown\"
+
+echo Tests compilation flags: $tests_flags
+
+build_files tests_cpp98 foreach glob:$root$/tests/cpp98/*.cpp \
+                        as tests.%r.cpp98$exe \
+                        deps libns2$so @item
+	c++ @item -std=c++98 $tests_flags$ -o @out
+
+build_files tests_cpp03 foreach glob:$root$/tests/cpp98/*.cpp \
+                                glob:$root$/tests/cpp03/*.cpp \
+                        as tests.%r.cpp03$exe \
+                        deps libns2$so @item
+	c++ @item -std=c++03 $tests_flags$ -o @out
+
+build_files tests_cpp11 foreach glob:$root$/tests/cpp98/*.cpp \
+                                glob:$root$/tests/cpp03/*.cpp \
+                                glob:$root$/tests/cpp11/*.cpp \
+                        as tests.%r.cpp11$exe \
+                        deps libns2$so @item
+	c++ @item -std=c++11 $tests_flags$ -o @out
+
+phony tests_cpp98 deps $tests_cpp98.files
+
+phony tests_cpp03 deps $tests_cpp03.files
+
+phony tests_cpp11 deps $tests_cpp11.files
+
+phony tests deps tests_cpp98 tests_cpp03 tests_cpp11
+
+# ------------------------------------------------------------------------------
+
+# Build bin
+
+build_files examples_cpp11 foreach glob:$root$/examples/*.cpp \
+                           as %r$exe \
+                           deps libns2$so @item
+	c++ @item -std=c++11 $tests_flags$ -o @out
+
+phony examples_cpp11 deps %examples_cpp11.files%

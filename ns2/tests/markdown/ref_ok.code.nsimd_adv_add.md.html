@@ -1,0 +1,8 @@
+<pre class="c++"><code>size_t len = size_t(nsimd::len(f32()));
+for (size_t i = 0; i &lt; N; i += len) {
+  // auto is nsimd::pack&lt;f32&gt;
+  auto v0 = nsimd::loada&lt;nsimd::pack&lt;f32&gt; &gt;(&amp;in0[i]);
+  auto v1 = nsimd::loada&lt;nsimd::pack&lt;f32&gt; &gt;(&amp;in1[i]);
+  auto r = v0 + v1;
+  nsimd::storea(&amp;out[i], r);
+}</code></pre>

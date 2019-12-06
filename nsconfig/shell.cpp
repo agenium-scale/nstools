@@ -471,7 +471,7 @@ static std::string gcc_clang(std::string const &compiler,
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
   args["--coverage"] = "--coverage";
-  args["--color"] = "-fdiagnostics-color=always";
+  args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
 
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;
@@ -622,7 +622,7 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
   args["-fopenmp"] = "/openmp";
   args["-shared"] = "/LD";
   args["--coverage"] = "";
-  args["--color"] = "";
+  args["-fdiagnostics-color=always"] = "";
 
   // Power extensions
   args["-maltivec"] = "";
@@ -827,7 +827,7 @@ static std::string icc(std::string const &compiler,
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
   args["--coverage"] = "";
-  args["--color"] = "";
+  args["-fdiagnostics-color=always"] = "";
 
   // Power extensions
   args["-maltivec"] = "";

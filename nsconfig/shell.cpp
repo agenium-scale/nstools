@@ -159,6 +159,7 @@ std::string rm(bool rf, std::string const &filename) {
 // ----------------------------------------------------------------------------
 // xcopy does not behave like cp when copying one directory into another
 
+#ifdef NS2_IS_MSVC
 static std::string xcopy_helper(std::string const &from,
                                 std::string const &to) {
   size_t slash_ = from.rfind('/');
@@ -173,6 +174,7 @@ static std::string xcopy_helper(std::string const &from,
                from.substr(size_t(i0 + 1)));
   }
 }
+#endif
 
 // ----------------------------------------------------------------------------
 

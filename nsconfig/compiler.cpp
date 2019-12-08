@@ -69,7 +69,7 @@ int get_type(infos_t *ci, std::string const &str) {
   } else if (str == "armclang" || str == "armclang++") {
     ci->type = compiler::infos_t::ARMClang;
     return 0;
-  } else if (str == "msvc") {
+  } else if (str == "cl") {
     ci->type = compiler::infos_t::MSVC;
     return 0;
   } else if (str == "icc") {

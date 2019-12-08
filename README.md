@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/agenium-scale/nstools.svg?branch=master)](https://travis-ci.org/agenium-scale/nstools)
+
 Documentation to come
 
 # NSTOOLS

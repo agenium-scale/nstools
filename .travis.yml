@@ -12,11 +12,11 @@ matrix:
           env:
             - TOOLSET_CC=clang
             - TOOLSET_CXX=clang++
-        - os: osx
-          env:
-            - TOOLSET_CC=clang
-            - TOOLSET_CXX=clang++
-            - SIMD=SSE2
+        #- os: osx
+        #  env:
+        #    - TOOLSET_CC=clang
+        #    - TOOLSET_CXX=clang++
+        #    - SIMD=SSE2
         - os: windows
           env:
             - TOOLSET_CC=cl.exe
@@ -36,7 +36,7 @@ install:
 
 before_script:
     - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-        cl.exe;
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64';
         cd nsconfig;
         nmake /F Makefile.win all install;
         export NSCONFIG="$USERPROFILE/bin/nsconfig.exe";

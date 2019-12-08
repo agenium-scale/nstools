@@ -5,7 +5,7 @@ Documentation to come
 NSTOOLS is a collection of tools that are used internally at Agenium Scale. It consists of
 
 - a C++ library named `ns2` containing
-  + a JSON parser with a SAXPI API
+  + a JSON parser with a SAX API
   + a Markdown to HTML converter
   + several utilities functions that are not standard C++ (at least until C++17)
   + a fstream-compliant implementation for file reading/writing based on `FILE*` and that correctly reports errors to the user
@@ -126,60 +126,38 @@ By default three rules will be generated:
   + `ninja`: Ninja build file (this is the default)
   + `list-vars`: List project specific variables
 
--Dvar=value   Affect value `value` to variable named `var` for the
-              build.nsconfig files. It can be accessed with `%var%`.
+- `-Dvar=value`: Affect value `value` to variable named `var` for the build.nsconfig files. It can be accessed with `%var%`.
 
--list-vars    List variables specific to a project. The list of variables
-              simply consists of those that are in ifnot_set.
+- `-list-vars`: List variables specific to a project. The list of variables simply consists of those that are in ifnot_set.
 
--ooutput      Instead of writing its output to the default file
-              (`build.ninja` for Ninja, Makefile for the other generators)
-              write the output to the file named `output`.
+- `-ooutput`: Instead of writing its output to the default file (`build.ninja` for Ninja, Makefile for the other generators) write the output to the file named `output`.
 
--comp=type    Tell nsconfig that the default C and C++ compilers are of type
-              `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type
-              must be one of the following:
-              * gcc         GNU Compiler Collection
-              * clang       LLVM Compiler Infrastructure
-              * msvc        Microsoft Visual C++
-              * armclang    ARM Compiler
-              * icc         Intel C/C++ Compiler
+- `-comp=type`: Tell nsconfig that the default C and C++ compilers are of type `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type must be one of the following:
+  + gcc: GNU Compiler Collection
+  + clang: LLVM Compiler Infrastructure
+  + msvc: Microsoft Visual C++
+  + armclang: ARM Compiler
+  + icc: Intel C/C++ Compiler
 
--ccomp=type,path
-              Tell nsconfig that the default C compiler is of type `type`
-              can be found at `path` (which can be a relative or an absolute
-              path). All invocations of `cc` in any command that has to be
-              translated will refer to the specified compiler. The type must be
-              one of the following:
-              * gcc         GNU Compiler Collection
-              * clang       LLVM Compiler Infrastructure
-              * msvc        Microsoft Visual C++
-              * armclang    ARM Compiler
-              * icc         Intel C/C++ Compiler
+- `-ccomp=type,path`: Tell nsconfig that the default C compiler is of type `type` can be found at `path` (which can be a relative or an absolute path). All invocations of `cc` in any command that has to be translated will refer to the specified compiler. The type must be one of the following:
+  + gcc: GNU Compiler Collection
+  + clang: LLVM Compiler Infrastructure
+  + msvc: Microsoft Visual C++
+  + armclang: ARM Compiler
+  + icc: Intel C/C++ Compiler
 
--cppcomp=type,path
-              Tell nsconfig that the default C++ compiler is of type `type`
-              can be found at `path` (which can be a relative or an absolute
-              path). All invocations of `c++` in any command that has to be
-              translated will refer to the specified compiler. The type must be
-              one of the following:
-              * gcc         GNU Compiler Collection
-              * clang       LLVM Compiler Infrastructure
-              * msvc        Microsoft Visual C++
-              * armclang    ARM Compiler
-              * icc         Intel C/C++ Compiler
+- `-cppcomp=type,path`: Tell nsconfig that the default C++ compiler is of type `type` can be found at `path` (which can be a relative or an absolute path). All invocations of `c++` in any command that has to be translated will refer to the specified compiler. The type must be one of the following:
+  + gcc: GNU Compiler Collection
+  + clang: LLVM Compiler Infrastructure
+  + msvc: Microsoft Visual C++
+  + armclang: ARM Compiler
+  + icc: Intel C/C++ Compiler
 
--nodev        Deactivate the fact that all rules depends on the Makefile or
-              build.ninja file itself to allow automatic regeneration. This
-              is useful if you intend to provide the Makefile or build.ninja
-              to a third party.
+- `-nodev`: Deactivate the fact that all rules depends on the Makefile or build.ninja file itself to allow automatic regeneration. This is useful if you intend to provide the Makefile or build.ninja to a third party.
 
--prefix=prefix
-              Tell nsconfig that prefix for installation of the project is
-              `prefix`. If none is given default is `/opt/local` on Linux
-              and `C:\Program Files` on Windows.
+- `-prefix=prefix`: Tell nsconfig that prefix for installation of the project is `prefix`. If none is given default is `/opt/local` on Linux and `C:\Program Files` on Windows.
 
---help        Print a quick help on stdout.
+- `--help`: Print a quick help on stdout.
 
 ## build.nsconfig file reference
 

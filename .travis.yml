@@ -36,25 +36,25 @@ install:
 
 before_script:
     - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
-        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64';
         cd nsconfig;
-        nmake /F Makefile.win all install;
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && nmake /F Makefile.win all install';
         export NSCONFIG="$USERPROFILE/bin/nsconfig.exe";
         export NSTEST="$USERPROFILE/bin/nstest.exe";
-        export COMP=msvc;
       else
         cd nsconfig;
         make -f Makefile.nix all install;
         export NSCONFIG="$HOME/.local/bin/nsconfig";
         export NSTEST="$HOME/.local/bin/nstest";
-        export COMP=$TOOLSET_CC;
       fi
     - mkdir ../ns2/build
 
 script:
-    - pwd
-    - ls
     - cd ../ns2/build
-    - $NSCONFIG .. -comp=$COMP
-    - ninja
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        echo NSCONFIG=$NSCONFIG;
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && \Users\travis\bin\nsconfig.exe .. -comp=msvc && ninja';
+      else
+        $NSCONFIG .. -comp=$TOOLSET_CC;
+        ninja;
+      fi
     - $NSTEST

@@ -51,7 +51,9 @@ before_script:
     - mkdir ../ns2/build
 
 script:
-    - cd ns2/build
+    - pwd
+    - ls
+    - cd ../ns2/build
     - $NSCONFIG .. -comp=$COMP
     - ninja
     - $NSTEST

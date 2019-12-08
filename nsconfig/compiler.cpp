@@ -44,8 +44,8 @@ std::ostream &operator<<(std::ostream &os, const infos_t &ci) {
 std::string get_correpsonding_cpp_comp(std::string const &c_comp) {
   if (c_comp == "gcc") {
     return "g++";
-  } else if (c_comp == "msvc") {
-    return "msvc";
+  } else if (c_comp == "cl") {
+    return "cl";
   } else if (c_comp == "clang") {
     return "clang++";
   } else if (c_comp == "armclang") {

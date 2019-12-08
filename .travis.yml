@@ -48,10 +48,10 @@ before_script:
         export NSTEST="$HOME/.local/bin/nstest"
         export COMP=$TOOLSET_CC
       fi
-    - mkdir build
-    - cd build
-    - $NSCONFIG .. -comp=$COMP
+    - mkdir ../build
 
 script:
+    - cd build
+    - $NSCONFIG .. -comp=$COMP
     - ninja
     - $NSTEST

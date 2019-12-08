@@ -452,6 +452,11 @@ static std::string gcc_clang(std::string const &compiler,
   args["-mneon128"] = "-mfpu=neon";
   args["-maarch64"] = "";
   args["-msve"] = "-march=armv8-a+sve";
+  args["-msve128"] = "-march=armv8-a+sve -msve-vector-bits=128";
+  args["-msve256"] = "-march=armv8-a+sve -msve-vector-bits=256";
+  args["-msve512"] = "-march=armv8-a+sve -msve-vector-bits=512";
+  args["-msve1024"] = "-march=armv8-a+sve -msve-vector-bits=1024";
+  args["-msve2048"] = "-march=armv8-a+sve -msve-vector-bits=2048";
 
   // Power extensions
   args["-maltivec"] = "-maltivec";
@@ -617,14 +622,17 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
   args["-mneon128"] = "";
   args["-maarch64"] = "";
   args["-msve"] = "";
+  args["-msve128"] = "";
+  args["-msve256"] = "";
+  args["-msve512"] = "";
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
   args["-mfma"] = "";
   args["-mfp16"] = "";
   args["-fopenmp"] = "/openmp";
   args["-shared"] = "/LD";
   args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
-
-  // Power extensions
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
 
@@ -822,6 +830,11 @@ static std::string icc(std::string const &compiler,
   args["-mneon128"] = "";
   args["-maarch64"] = "";
   args["-msve"] = "";
+  args["-msve128"] = "";
+  args["-msve256"] = "";
+  args["-msve512"] = "";
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
   args["-mfma"] = "-mfma";
   args["-mfp16"] = "-mf16c";
   args["-fopenmp"] = "-fopenmp";

@@ -2,13 +2,16 @@ Documentation to come
 
 # NSTOOLS
 
-NSTOOLS is a collection of tools that are used internally at Agenium Scale. It consists of
+NSTOOLS is a collection of tools that are used internally at Agenium Scale. It
+consists of
 
 - a C++ library named `ns2` containing
   + a JSON parser with a SAX API
   + a Markdown to HTML converter
-  + several utilities functions that are not standard C++ (at least until C++17)
-  + a fstream-compliant implementation for file reading/writing based on `FILE*` and that correctly reports errors to the user
+  + several utilities functions that are not standard C++ (at least until
+    C++17)
+  + a fstream-compliant implementation for file reading/writing based on
+    `FILE*` and that correctly reports errors to the user
 - a configure system named `nsconfig` that is able to generate
   + POSIX Makefiles
   + GNU Makefiles
@@ -17,7 +20,9 @@ NSTOOLS is a collection of tools that are used internally at Agenium Scale. It c
 
 # The `ns2` C++ library
 
-It is located in the `ns2` directory and can be built for both Linux and Windows using `nsconfig`. As no documentation is available yet here are commented pieces of the listing of [`md2html.cpp`](https://github.com/agenium-scale/nsimd/blob/master/doc/md2html.cpp).
+It is located in the `ns2` directory and can be built for both Linux and
+Windows using `nsconfig`. As no documentation is available yet here are
+commented pieces of the listing of [`md2html.cpp`](https://github.com/agenium-scale/nsimd/blob/master/doc/md2html.cpp).
 
 ```c++
 [...]
@@ -71,11 +76,21 @@ int main(int argc, char **argv) {
 }
 ```
 
-`Ns2` contains many more functions looking at the [`tests`](https://github.com/agenium-scale/nstools/tree/master/ns2/tests) directory will show you how to use the functions. The prototypes of functions (here)[https://github.com/agenium-scale/nstools/tree/master/ns2/include/ns2] will help you to use them.
+`Ns2` contains many more functions. Looking at the
+[`tests`](https://github.com/agenium-scale/nstools/tree/master/ns2/tests)
+directory will show you how to use the functions. The prototypes of functions
+[here](https://github.com/agenium-scale/nstools/tree/master/ns2/include/ns2)
+will help you to use them.
 
 # Nsconfig
 
-Nsconfig is the replacement of CMake at Agenium Scale. We used to use CMake but it did fit our needs. After having considered other build systems our choice was made to write yet another one that suits our needs. This build system may or may not be the right one for you. It was not written to replace CMake or the autotools worldwide. It was written for our needs only. As no dedicated pages for the documentation is ready for nstools and for nsconfig, what follows is the docoumentation of nsconfig.
+Nsconfig is the replacement of CMake at Agenium Scale. We used to use CMake but
+it did fit our needs. After having considered other build systems our choice
+was made to write yet another one that suits our needs. This build system may
+or may not be the right one for you. It was not written to replace CMake or the
+autotools worldwide. It was written for our needs only. As no dedicated pages
+for the documentation is ready for nstools and for nsconfig, what follows is
+the docoumentation of nsconfig.
 
 ## Overview
 
@@ -126,36 +141,52 @@ By default three rules will be generated:
   + `ninja`: Ninja build file (this is the default)
   + `list-vars`: List project specific variables
 
-- `-Dvar=value`: Affect value `value` to variable named `var` for the build.nsconfig files. It can be accessed with `%var%`.
+- `-Dvar=value`: Affect value `value` to variable named `var` for the
+  build.nsconfig files. It can be accessed with `%var%`.
 
-- `-list-vars`: List variables specific to a project. The list of variables simply consists of those that are in ifnot_set.
+- `-list-vars`: List variables specific to a project. The list of variables
+  simply consists of those that are in ifnot_set.
 
-- `-ooutput`: Instead of writing its output to the default file (`build.ninja` for Ninja, Makefile for the other generators) write the output to the file named `output`.
+- `-ooutput`: Instead of writing its output to the default file (`build.ninja`
+  for Ninja, Makefile for the other generators) write the output to the file
+  named `output`.
 
-- `-comp=type`: Tell nsconfig that the default C and C++ compilers are of type `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type must be one of the following:
+- `-comp=type`: Tell nsconfig that the default C and C++ compilers are of type
+  `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type must be one
+  of the following:
   + gcc: GNU Compiler Collection
   + clang: LLVM Compiler Infrastructure
   + msvc: Microsoft Visual C++
   + armclang: ARM Compiler
   + icc: Intel C/C++ Compiler
 
-- `-ccomp=type,path`: Tell nsconfig that the default C compiler is of type `type` can be found at `path` (which can be a relative or an absolute path). All invocations of `cc` in any command that has to be translated will refer to the specified compiler. The type must be one of the following:
+- `-ccomp=type,path`: Tell nsconfig that the default C compiler is of type
+  `type` can be found at `path` (which can be a relative or an absolute path).
+  All invocations of `cc` in any command that has to be translated will refer
+  to the specified compiler. The type must be one of the following:
   + gcc: GNU Compiler Collection
   + clang: LLVM Compiler Infrastructure
   + msvc: Microsoft Visual C++
   + armclang: ARM Compiler
   + icc: Intel C/C++ Compiler
 
-- `-cppcomp=type,path`: Tell nsconfig that the default C++ compiler is of type `type` can be found at `path` (which can be a relative or an absolute path). All invocations of `c++` in any command that has to be translated will refer to the specified compiler. The type must be one of the following:
+- `-cppcomp=type,path`: Tell nsconfig that the default C++ compiler is of type
+  `type` can be found at `path` (which can be a relative or an absolute path).
+  All invocations of `c++` in any command that has to be translated will refer
+  to the specified compiler. The type must be one of the following:
   + gcc: GNU Compiler Collection
   + clang: LLVM Compiler Infrastructure
   + msvc: Microsoft Visual C++
   + armclang: ARM Compiler
   + icc: Intel C/C++ Compiler
 
-- `-nodev`: Deactivate the fact that all rules depends on the Makefile or build.ninja file itself to allow automatic regeneration. This is useful if you intend to provide the Makefile or build.ninja to a third party.
+- `-nodev`: Deactivate the fact that all rules depends on the Makefile or
+  build.ninja file itself to allow automatic regeneration. This is useful if
+  you intend to provide the Makefile or build.ninja to a third party.
 
-- `-prefix=prefix`: Tell nsconfig that prefix for installation of the project is `prefix`. If none is given default is `/opt/local` on Linux and `C:\Program Files` on Windows.
+- `-prefix=prefix`: Tell nsconfig that prefix for installation of the project
+  is `prefix`. If none is given default is `/opt/local` on Linux and
+  `C:\Program Files` on Windows.
 
 - `--help`: Print a quick help on stdout.
 
@@ -427,10 +458,9 @@ Touch `file`.
 
 Force remove (recursively if `-r` is present) `path1`, `path2`, ..., `pathN`.
 
-### `cp [-r] path1 path2 ... pathN dest`
+### `cp [-r] src dest`
 
-Force copy (recursively if `-r` is present) `path1`, `path2`, ..., `pathN` to
-`dest`.
+Force copy (recursively if `-r` is present) `src`, to `dest`.
 
 ### `mkdir dir`
 
@@ -475,8 +505,7 @@ GCC. On Windows MSVC will be the first choice, then Clang and then GCC.
 Compile `file1`, `file2`, ..., `fileN`. Several options can be given to the
 compiler:
 
-- `-std=c89`: compile using the C89 standard. All "-std=*" add "-pedantic"
-  option. 
+- `-std=c89`: compile using the C89 standard.
 - `-std=c99`: compile using the C99 standard.
 - `-std=c++98`: compile using the C++98 standard.
 - `-std=c++03`: compile using the C++03 standard.
@@ -503,6 +532,14 @@ compiler:
 - `-mavx2`: enable AVX2 extension.
 - `-mavx512_knl`: enable AVX512 extensions as found on KNL chips.
 - `-mavx512_skylake`: enable AVX512 extensions as found on Skylake chips.
+- `-mneon128`: enable ARMv7 NEON 128 bits extensions.
+- `-maarch64`: enable Advanced SIMD extensions.
+- `-msve`: enable SVE extensions.
+- `-msve128`: enable SVE extensions for fixed sized vectors of 128 bits.
+- `-msve256`: enable SVE extensions for fixed sized vectors of 256 bits.
+- `-msve512`: enable SVE extensions for fixed sized vectors of 512 bits.
+- `-msve1024`: enable SVE extensions for fixed sized vectors of 1024 bits.
+- `-msve2048`: enable SVE extensions for fixed sized vectors of 2048 bits.
 - `-mfma`: enable FMAs.
 - `-mfp16`: enable native FP16 support.
 - `-fopenmp`: enable handling of OpenMP directives.
@@ -516,4 +553,5 @@ compiler:
 - `-Ldir`: add `dir` to the list of directories to be searched for `-l`.
 - `-L$ORIGIN`: tell the linker to link against libraries in the same folder
   as the binary.
+- `-fdiagnostics-color=always`: Use color in diagnostics.
 - `--version`: display compiler version and ignore all other flags.

@@ -48,9 +48,7 @@ before_script:
         export NSTEST="$HOME/.local/bin/nstest";
         export COMP=$TOOLSET_CC;
       fi
-    - pwd
-    - ls
-    - mkdir ns2/build
+    - mkdir ../ns2/build
 
 script:
     - cd ns2/build

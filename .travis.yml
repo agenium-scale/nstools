@@ -38,15 +38,15 @@ before_script:
     - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
         cd nsconfig;
         nmake /F Makefile.win all install;
-        export NSCONFIG="$USERPROFILE/bin/nsconfig.exe"
-        export NSTEST="$USERPROFILE/bin/nstest.exe"
-        export COMP=msvc
+        export NSCONFIG="$USERPROFILE/bin/nsconfig.exe";
+        export NSTEST="$USERPROFILE/bin/nstest.exe";
+        export COMP=msvc;
       else
         cd nsconfig;
         make -f Makefile.nix all install;
-        export NSCONFIG="$HOME/.local/bin/nsconfig"
-        export NSTEST="$HOME/.local/bin/nstest"
-        export COMP=$TOOLSET_CC
+        export NSCONFIG="$HOME/.local/bin/nsconfig";
+        export NSTEST="$HOME/.local/bin/nstest";
+        export COMP=$TOOLSET_CC;
       fi
     - mkdir ../build
 

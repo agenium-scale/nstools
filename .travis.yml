@@ -52,7 +52,7 @@ script:
     - cd ../ns2/build
     - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
         echo NSCONFIG=$NSCONFIG;
-        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && \Users\travis\bin\nsconfig.exe .. -comp=cl.exe && ninja';
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && \Users\travis\bin\nsconfig.exe .. -comp=cl && ninja';
       else
         $NSCONFIG .. -comp=$TOOLSET_CC;
         ninja;

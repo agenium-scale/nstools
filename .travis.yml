@@ -1,0 +1,57 @@
+language: cpp
+dist: bionic
+osx_image: xcode10.2
+
+matrix:
+    include:
+        - os: linux
+          env:
+            - TOOLSET_CC=gcc
+            - TOOLSET_CXX=g++
+        - os: linux
+          env:
+            - TOOLSET_CC=clang
+            - TOOLSET_CXX=clang++
+        - os: osx
+          env:
+            - TOOLSET_CC=clang
+            - TOOLSET_CXX=clang++
+            - SIMD=SSE2
+        - os: windows
+          env:
+            - TOOLSET_CC=cl.exe
+            - TOOLSET_CXX=cl.exe
+
+install:
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        choco install -y ninja;
+      fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install ninja;
+      fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+        sudo apt update;
+        sudo apt install -y build-essential clang llvm ninja-build;
+      fi
+
+before_script:
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        cd nsconfig;
+        nmake /F Makefile.win all install;
+        export NSCONFIG="$USERPROFILE/bin/nsconfig.exe"
+        export NSTEST="$USERPROFILE/bin/nstest.exe"
+        export COMP=msvc
+      else
+        cd nsconfig;
+        make -f Makefile.nix all install;
+        export NSCONFIG="$HOME/.local/bin/nsconfig"
+        export NSTEST="$HOME/.local/bin/nstest"
+        export COMP=$TOOLSET_CC
+      fi
+    - mkdir build
+    - cd build
+    - $NSCONFIG .. -comp=$COMP
+
+script:
+    - ninja
+    - $NSTEST

@@ -44,8 +44,8 @@ std::ostream &operator<<(std::ostream &os, const infos_t &ci) {
 std::string get_correpsonding_cpp_comp(std::string const &c_comp) {
   if (c_comp == "gcc") {
     return "g++";
-  } else if (c_comp == "msvc") {
-    return "msvc";
+  } else if (c_comp == "cl") {
+    return "cl";
   } else if (c_comp == "clang") {
     return "clang++";
   } else if (c_comp == "armclang") {
@@ -69,7 +69,7 @@ int get_type(infos_t *ci, std::string const &str) {
   } else if (str == "armclang" || str == "armclang++") {
     ci->type = compiler::infos_t::ARMClang;
     return 0;
-  } else if (str == "msvc") {
+  } else if (str == "cl") {
     ci->type = compiler::infos_t::MSVC;
     return 0;
   } else if (str == "icc") {

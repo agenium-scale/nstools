@@ -1,0 +1,63 @@
+language: cpp
+dist: bionic
+osx_image: xcode10.2
+
+matrix:
+    include:
+        - os: linux
+          env:
+            - TOOLSET_CC=gcc
+            - TOOLSET_CXX=g++
+        - os: linux
+          env:
+            - TOOLSET_CC=clang
+            - TOOLSET_CXX=clang++
+        #- os: osx
+        #  env:
+        #    - TOOLSET_CC=clang
+        #    - TOOLSET_CXX=clang++
+        #    - SIMD=SSE2
+        - os: windows
+          env:
+            - TOOLSET_CC=cl.exe
+            - TOOLSET_CXX=cl.exe
+
+git:
+    autocrlf: false
+
+install:
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        choco install -y ninja;
+      fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install ninja;
+      fi
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+        sudo apt update;
+        sudo apt install -y build-essential clang llvm ninja-build;
+      fi
+
+before_script:
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        cd nsconfig;
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && nmake /F Makefile.win all install';
+        export NSCONFIG="$USERPROFILE/bin/nsconfig.exe";
+        export NSTEST="$USERPROFILE/bin/nstest.exe";
+      else
+        cd nsconfig;
+        make -f Makefile.nix all install;
+        export NSCONFIG="$HOME/.local/bin/nsconfig";
+        export NSTEST="$HOME/.local/bin/nstest";
+      fi
+    - mkdir ../ns2/build
+
+script:
+    - cd ../ns2/build
+    - if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+        echo NSCONFIG=$NSCONFIG;
+        cmd.exe /C '"C:\Program Files (x86)\Microsoft Visual Studio\2017\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" amd64 && \Users\travis\bin\nsconfig.exe .. -comp=cl && ninja';
+      else
+        $NSCONFIG .. -comp=$TOOLSET_CC;
+        ninja;
+      fi
+    - $NSTEST

@@ -443,8 +443,19 @@ static std::string gcc_clang(std::string const &compiler,
   args["-mssse3"] = "-mssse3";
   args["-msse41"] = "-msse4.1";
   args["-msse42"] = "-msse4.2";
-  args["-mavx"] = "-mavx";
-  args["-mavx2"] = "-mavx2";
+  if (ci.type == compiler::infos_t::GCC) {
+    // Using GCC, unaligned loads and stores are decomposed into two loads and
+    // stores of SSE registers. We want to avoid that. More informations at
+    // https://stackoverflow.com/questions/52626726
+    //    /why-doesnt-gcc-resolve-mm256-loadu-pd-as-single-vmovupd
+    args["-mavx"] = "-mavx -mno-avx256-split-unaligned-load "
+                    "-mno-avx256-split-unaligned-store";
+    args["-mavx2"] = "-mavx2 -mno-avx256-split-unaligned-load "
+                     "-mno-avx256-split-unaligned-store";
+  } else {
+    args["-mavx"] = "-mavx";
+    args["-mavx2"] = "-mavx2";
+  }
   args["-mavx512_knl"] = "-mavx512f -mavx512pf -mavx512er -mavx512cd";
   args["-mavx512_skylake"] =
       "-mavx512f -mavx512dq -mavx512cd -mavx512bw -mavx512vl";

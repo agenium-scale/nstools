@@ -1,0 +1,11 @@
+timetable = TimeTable
+begindate = Date de début
+enddate = Date de fin
+explanations = Sélectionnner les dates de la période pendant laquelle vous souhaitez générer la timetable.
+default = Par défaut le dernier mois a été sélectionné.
+generate = Générer
+error_misformed_date = Dates de début et/ou de fin non reconnues.
+error_end_begin = La date de début doit être antérieure à la date de fin.
+error_write_file = Impossible de créer le fichier côté serveur.
+error_no_user = Aucun utilisateur n'a rentré ses temps durant cette période.
+download_link = Vous pouvez télécharger le fichier en cliquant sur le lien ci-dessous.

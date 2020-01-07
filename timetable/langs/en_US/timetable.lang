@@ -1,0 +1,11 @@
+timetable = TimeTable
+begindate = Beginning of period
+enddate = End of period
+explanations = Select date for the period you want to focus on for the timetable.
+default = By default last month is selected for you.
+generate = generate
+error_misformed_date = Wrong date format.
+error_end_begin = Begin date must be before end date.
+error_write_file = Cannot create file on server side.
+error_no_user = No user have provided their times during this period.
+download_link = You can download the timetable by clicking below.

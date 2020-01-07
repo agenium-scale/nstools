@@ -19,6 +19,7 @@ consists of
   + GNU Makefiles
   + Microsoft Makefiles
   + ninja files (default)
+- a small C utility to spawn resilient processes through SSH.
 
 # The `ns2` C++ library
 
@@ -557,3 +558,47 @@ compiler:
   as the binary.
 - `-fdiagnostics-color=always`: Use color in diagnostics.
 - `--version`: display compiler version and ignore all other flags.
+
+# Sshdetach
+
+This tiny helper program has for sole purpose to spawn resilient processes
+through SSH.
+
+For Linuxes there is not really any need for that since many solutions already
+exist: nohup, tmux, screen, good use of the shell... For more details see:
+<https://stackoverflow.com/questions/29142/getting-ssh-to-execute-a-command-in-the-background-on-target-machine>
+
+The plus of this C program is the support of the same functionnality for
+Microsoft Windows systems using Microsoft OpenSSH port (available at github:
+<https://github.com/PowerShell/openssh-portable>).
+
+## How it works?
+
+On Linux, nothing new. Double fork + close all `std*` and done.
+
+On Windows it seems that sshd does not do a simple launch via `CreateProcess`
+but creates a `JobObject`
+(<https://docs.microsoft.com/en-us/windows/desktop/procthread/job-objects>).
+As a consequence any spawned process via CreateProcess belongs to this
+`JobObject`. Then as soon as the command executed by sshd finishes, all its
+child processes are killed because they all belong to the same `JobObject`. The
+trick is to create a child process that get out of the `JobObject`. This is the
+job of this C program. It is done with the `CREATE_BREAKAWAY_FROM_JOB` flag
+passed to `CreateProcess`. This seems to work and will do as long as sshd does
+create a `JobObject` with the `JOB_OBJECT_LIMIT_BREAKAWAY_OK` flag.
+
+## Compilation on Linux
+
+Make sure that build essential tools are available.
+
+```sh
+make -f Makefile.nix
+```
+
+## Compilation on Windows
+
+Make sure that a Visual Studio Prompt is available.
+
+```sh
+nmake /F Makefile.win
+```

@@ -1,0 +1,9 @@
+all:
+	cl /Ox /W3 sshdetach.c /Fesshdetach.exe
+
+install:
+	if not exist %USERPROFILE%\bin md %USERPROFILE%\bin
+	copy /Y sshdetach.exe %USERPROFILE%\bin
+
+clean:
+	del /Q /F sshdetach.exe

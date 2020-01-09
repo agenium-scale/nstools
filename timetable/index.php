@@ -152,7 +152,11 @@ if (GETPOST('action', 'alpha') === 'generate') {
     if (array_key_exists($date, $csv) === FALSE) {
       $csv[$date] = array();
     }
-    $csv[$date][$login] = $project;
+    if (array_key_exists($login, $csv[$date]) === FALSE) {
+      $csv[$date][$login] = $project;
+    } else {
+      $csv[$date][$login] .= " + ".$project;
+    }
 
     // fill $users
     if (array_key_exists($login, $users) === FALSE) {

@@ -21,6 +21,7 @@ consists of
   + ninja files (default)
 - a small C utility to spawn resilient processes through SSH.
 - a small Dolibarr module that generates workloads reports.
+-a set of installation script for Linux systems.
 
 # The `ns2` C++ library
 
@@ -617,3 +618,86 @@ cell will contain "PROJECT1 + PROJECT2".
 When a project title contains the substring "meta" then timetable will take
 the label of the task the team member declared time spent on instead of the
 corresponding project title.
+
+# Installation scripts
+
+The `installation-scripts` contains bash scripts for the installation of
+several software. They are not heavely tested for other shells and may contains
+bugs. Each installation script produces a `modulefile` for the `module`
+command. The `modulefile` will be installed into the directories provided by
+the `module` command found in the `$PATH` when the install script is launched.
+
+## Installing GCC
+
+Installing GCC is done by the following.
+
+```sh
+bash install-gcc.sh (trunk | VERSION)
+```
+
+When passing `trunk`, it will download and install the last SVN revision of
+GCC. When passing the version number, the script will download the specified
+version of GCC to install it as in the example below for GCC 9.2.
+
+```sh
+bash install-gcc.sh 9.2.0
+```
+
+## Installing Clang
+
+Installing Clang is done by the following.
+
+```sh
+bash install-clang.sh VERSION
+```
+
+Passing the version number, the script will download the specified
+version of Clang/LLVM to install it as in the example below for Clang 9.0.0.
+
+```sh
+bash install-clang.sh 9.0.0
+```
+
+## Installing CMake
+
+Installing CMake is done by the following.
+
+```sh
+bash install-cmake.sh
+```
+
+It will download and install CMake version 3.10.0. The version is hard-coded
+inside the script.
+
+## Installing Python 2
+
+Installing Python 2 is done by the following.
+
+```sh
+bash install-python27.sh
+```
+
+It will download and install Python version 2.7.14. The version is hard-coded
+inside the script.
+
+## Installing HTOP
+
+Installing HTOP is done by the following.
+
+```sh
+bash install-htop.sh
+```
+
+It will download and install HTOP version 2.0.2. The version is hard-coded
+inside the script.
+
+## Installing patchelf
+
+Installing patchelf is done by the following.
+
+```sh
+bash install-patchelf.sh
+```
+
+It will download and install patchelf version 0.9. The version is hard-coded
+inside the script.

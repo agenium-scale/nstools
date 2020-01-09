@@ -118,7 +118,7 @@ if (GETPOST('action', 'alpha') === 'generate') {
   // get all times (a request to the DB seems necessary cf.
   // projet/tasks/time.php) and users and project
   $sql =
-   "SELECT t.task_date, u.login, u.firstname, u.lastname, p.title"
+   "SELECT t.task_date, pt.label, u.login, u.firstname, u.lastname, p.title"
   ." FROM (((".MAIN_DB_PREFIX."projet_task_time as t"
   ." INNER JOIN ".MAIN_DB_PREFIX."projet_task as pt ON t.fk_task = pt.rowid)"
   ." INNER JOIN ".MAIN_DB_PREFIX."projet as p ON pt.fk_projet = p.rowid)"
@@ -142,7 +142,9 @@ if (GETPOST('action', 'alpha') === 'generate') {
     $row = $db->fetch_object($resql);
     $date = date("Y/m/d", strtotime($row->task_date));
     $login = $row->login;
-    $project = $row->title;
+    $task = $row->label;
+    $project = strpos($row->title, "meta") === FALSE ?
+               $row->title : $row->label;
     $firstname = $row->firstname;
     $lastname = $row->lastname;
 

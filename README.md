@@ -20,6 +20,7 @@ consists of
   + Microsoft Makefiles
   + ninja files (default)
 - a small C utility to spawn resilient processes through SSH.
+- a small Dolibarr module that generates workloads reports.
 
 # The `ns2` C++ library
 
@@ -602,3 +603,17 @@ Make sure that a Visual Studio Prompt is available.
 ```sh
 nmake /F Makefile.win
 ```
+
+# Timetable
+
+Timetable is a small [Dolibarr](https://www.dolibarr.org) module that generates
+CSVs containing the team workload summary. One chooses the period that the
+report has to cover and click "Generate". The CSV will contain a 2D table
+with dates in increasing order and team members sorted by their lastnames.
+Then each cell will contain the name of the project they declared time spent
+on. If on the same day they workd on several projects, then the corresponding
+cell will contain "PROJECT1 + PROJECT2".
+
+When a project title contains the substring "meta" then timetable will take
+the label of the task the team member declared time spent on instead of the
+corresponding project title.

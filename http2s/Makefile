@@ -39,7 +39,7 @@ FILES     = $(SOURCES) Makefile
 all: $(BIN)
 
 $(BIN): Makefile $(SOURCES)
-	$(CC) $(OFLAGS) $(LDFLAGS) $(CFLAGS) $(BIN).c -o $(BIN)
+	$(CC) $(OFLAGS) $(CFLAGS) $(BIN).c $(LDFLAGS) -o $(BIN)
 
 install: all
 	mkdir -p $(BIN_DIR)

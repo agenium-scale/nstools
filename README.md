@@ -21,7 +21,8 @@ consists of
   + ninja files (default)
 - a small C utility to spawn resilient processes through SSH.
 - a small Dolibarr module that generates workloads reports.
--a set of installation script for Linux systems.
+- a set of installation script for Linux systems.
+- a program to block slowloris attacks.
 
 # The `ns2` C++ library
 
@@ -701,3 +702,12 @@ bash install-patchelf.sh
 
 It will download and install patchelf version 0.9. The version is hard-coded
 inside the script.
+
+# Http2s
+
+Http2s is a program that acts as a small web server and blocks slowloris
+attacks. It does not support `https`. It listen to `http` requests and
+judge whether they are attacks or not. If yes they are simply closed otherwise
+a redirect is sent to the client to the proper website. It only work on Linux
+for now and may contain bugs. There are no proper testing but it has worked
+in production for several years without being interrupted.

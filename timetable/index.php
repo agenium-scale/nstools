@@ -70,6 +70,13 @@ $last_month_end = date("Y-m-d", $post_end === '' ?
                                 strtotime("last day of previous month") :
                                 $end);
 
+// parameters that could (must?) be set in the UI some day...
+// this will need to be put as a settings for further developements
+$date_format = "d/m/Y";        // output format for date (default to french)
+$leave_project = "Congés";     // name of leave task
+$public_leave_label = "FERIE"; // public leave label on agenda events
+$sick_leave_project = "ARRÊT DE TRAVAIL";
+
 // ----------------------------------------------------------------------------
 // Build HTML
 
@@ -114,15 +121,51 @@ if (GETPOST('action', 'alpha') === 'generate') {
     goto print_footer;
   }
 
-  // compute timetable now
-  // get all times (a request to the DB seems necessary cf.
-  // projet/tasks/time.php) and users and project
+  // retrieve public holidays
+  $sql =
+   "SELECT ac.datep"
+  ." FROM (".MAIN_DB_PREFIX."actioncomm AS ac"
+  ." INNER JOIN ".MAIN_DB_PREFIX."user AS u ON ac.fk_user_author = u.rowid"
+  ." AND u.admin = 1)"
+  ." WHERE ac.datep >= '".date("Y-m-d", $begin)
+  ."' AND ac.datep <= '".date("Y-m-d", $end)."'"
+  ." AND ac.label = '".$public_leave_label."';";
+  $resql = $db->query($sql);
+  if (!$resql) {
+    dol_print_error($db);
+    exit;
+  }
+  $public_holidays = array();
+  for ($i = 0; $i < $db->num_rows($resql); $i++) {
+    $row = $db->fetch_object($resql);
+    array_push($public_holidays, date("Y/m/d", strtotime($row->datep)));
+  }
+
+  // build the array of all days discarding week-ends and public holidays
+  $curr = date("Y/m/d", $begin);
+  $day_of_week = date("w", strtotime($curr));
+  if ($day_of_week != "0" && $day_of_week != "6" &&
+      array_search($curr, $public_holidays) === FALSE) {
+    $dates = array($curr);
+  } else {
+    $dates = array();
+  }
+  do {
+    $curr = date("Y/m/d", strtotime($curr." +1 day"));
+    $day_of_week = date("w", strtotime($curr));
+    if ($day_of_week != "0" && $day_of_week != "6" &&
+        array_search($curr, $public_holidays) === FALSE) {
+      array_push($dates, $curr);
+    }
+  } while($curr != date("Y/m/d", $end));
+
+  // get all spent times
   $sql =
    "SELECT t.task_date, pt.label, u.login, u.firstname, u.lastname, p.title"
-  ." FROM (((".MAIN_DB_PREFIX."projet_task_time as t"
-  ." INNER JOIN ".MAIN_DB_PREFIX."projet_task as pt ON t.fk_task = pt.rowid)"
-  ." INNER JOIN ".MAIN_DB_PREFIX."projet as p ON pt.fk_projet = p.rowid)"
-  ." INNER JOIN ".MAIN_DB_PREFIX."user as u ON t.fk_user = u.rowid)"
+  ." FROM (((".MAIN_DB_PREFIX."projet_task_time AS t"
+  ." INNER JOIN ".MAIN_DB_PREFIX."projet_task AS pt ON t.fk_task = pt.rowid)"
+  ." INNER JOIN ".MAIN_DB_PREFIX."projet AS p ON pt.fk_projet = p.rowid)"
+  ." INNER JOIN ".MAIN_DB_PREFIX."user AS u ON t.fk_user = u.rowid)"
   ." WHERE t.task_date >= '".date("Y-m-d", $begin)
   ."' AND t.task_date <= '".date("Y-m-d", $end)."';";
   $resql = $db->query($sql);
@@ -131,16 +174,17 @@ if (GETPOST('action', 'alpha') === 'generate') {
     exit;
   }
 
-  // format for handling date (default to french)
-  // this will need to be put as a settings for further developements
-  $date_format = "d/m/Y";
-
-  // get informations from database
+  // get informations from database on time spent
   $csv = array();
   $users = array();
+  $projects = array();
   for ($i = 0; $i < $db->num_rows($resql); $i++) {
     $row = $db->fetch_object($resql);
     $date = date("Y/m/d", strtotime($row->task_date));
+    // ignore public holidays
+    if (array_search($date, $public_holidays) !== FALSE) {
+      continue;
+    }
     $login = $row->login;
     $task = $row->label;
     $project = strpos($row->title, "meta") === FALSE ?
@@ -153,17 +197,53 @@ if (GETPOST('action', 'alpha') === 'generate') {
       $csv[$date] = array();
     }
     if (array_key_exists($login, $csv[$date]) === FALSE) {
-      $csv[$date][$login] = $project;
+      $csv[$date][$login] = array($project);
     } else {
-      $csv[$date][$login] .= " + ".$project;
+      array_push($csv[$date][$login], $project);
     }
 
     // fill $users
     if (array_key_exists($login, $users) === FALSE) {
       $users[$login] = $lastname." ".$firstname;
     }
+
+    // fill projects
+    if (array_key_exists($project, $projects) === FALSE) {
+      $projects[$project] = 0.0;
+    }
   }
   $db->free($resql);
+
+  // per-project stats (special case for leaves which are per-user)
+  // also for "ticket restaurant" count.
+  $leaves = array();
+  $no_meal_tickets = array();
+  foreach ($csv as $v) {
+    foreach ($v as $l => $w) {
+      $no_meal_ticket = FALSE;
+      foreach ($w as $p) {
+        $projects[$p] += 1.0 / count($w);
+        if (mb_strtolower($p) == mb_strtolower($leave_project)) {
+          $no_meal_ticket = TRUE;
+          if (array_key_exists($l, $leaves) === FALSE) {
+            $leaves[$l] = 1.0 / count($w);
+          } else {
+            $leaves[$l] += 1.0 / count($w);
+          }
+        }
+        if (mb_strtolower($p) == mb_strtolower($sick_leave_project)) {
+          $no_meal_ticket = TRUE;
+        }
+      }
+      if ($no_meal_ticket) {
+        if (array_key_exists($l, $no_meal_tickets) === FALSE) {
+          $no_meal_tickets[$l] = 1;
+        } else {
+          $no_meal_tickets[$l] += 1;
+        }
+      }
+    }
+  }
 
   // sort users by values if any otherwise exit
   if (count($users) == 0) {
@@ -172,22 +252,6 @@ if (GETPOST('action', 'alpha') === 'generate') {
   }
   asort($users);
   $empty_row = join(", ", array_fill(0, count($users), '""'));
-
-  // build the array of all days
-  $curr = date("Y/m/d", $begin);
-  $day_of_week = date("w", strtotime($curr));
-  if ($day_of_week != "0" && $day_of_week != "6") {
-    $dates = array($curr);
-  } else {
-    $dates = array();
-  }
-  do {
-    $curr = date("Y/m/d", strtotime($curr." +1 day"));
-    $day_of_week = date("w", strtotime($curr));
-    if ($day_of_week != "0" && $day_of_week != "6") {
-      array_push($dates, $curr);
-    }
-  } while($curr != date("Y/m/d", $end));
 
   // generate filename
   $start_month = date("F", $begin);
@@ -210,7 +274,7 @@ if (GETPOST('action', 'alpha') === 'generate') {
       foreach ($users as $login => $u) {
         $buf .= ", ";
         if (array_key_exists($login, $csv[$dates[$i]])) {
-          $buf .= '"'.$csv[$dates[$i]][$login].'"';
+          $buf .= '"'.join(' + ', $csv[$dates[$i]][$login]).'"';
         } else {
           $buf .= '""';
         }
@@ -218,10 +282,20 @@ if (GETPOST('action', 'alpha') === 'generate') {
     } else {
       $buf .= ", ".$empty_row;
     }
-    if ($i < count($dates) - 1) {
-      $buf .= "\n";
-    }
+    $buf .= "\n";
   }
+  $buf .= '""'."\n";
+  foreach ($projects as $p => $t) {
+    $buf .= '"'.$p.'", "'.$t.'"'."\n";
+  }
+  $buf .= '""'."\n";
+  $buf .= '"Nombre de jours travaillés", "'.count($dates).'"'."\n";
+  foreach ($leaves as $l => $t) {
+    $buf .= '"'.$leave_project." ".$users[$l].'", "'.$t.'"'.
+            ', "Nombre de tickets restaurant", "'.
+            max(0, count($dates) - $no_meal_tickets[$l]).'"';
+  }
+
   //print("<pre><code>".$buf."</code></pre>");
 
   // write the file

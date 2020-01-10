@@ -68,6 +68,6 @@ script:
         make -f Makefile.nix;
       fi
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-        cd ../../http2s;
+        cd ../http2s;
         make;
       fi

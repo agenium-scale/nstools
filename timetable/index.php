@@ -293,7 +293,7 @@ if (GETPOST('action', 'alpha') === 'generate') {
   foreach ($leaves as $l => $t) {
     $buf .= '"'.$leave_project." ".$users[$l].'", "'.$t.'"'.
             ', "Nombre de tickets restaurant", "'.
-            max(0, count($dates) - $no_meal_tickets[$l]).'"';
+            max(0, count($dates) - $no_meal_tickets[$l]).'"'."\n";
   }
 
   //print("<pre><code>".$buf."</code></pre>");

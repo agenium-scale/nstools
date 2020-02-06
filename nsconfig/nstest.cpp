@@ -55,16 +55,7 @@ thread_output_t thread_start(work_t *work) {
       printf("-- Executing %s\n", exe->c_str());
       fflush(stdout);
     }
-#ifdef NS2_IS_MSVC
     std::pair<std::string, int> result = ns2::popen((*exe) + " 2>&1");
-#else
-    std::pair<std::string, int> result;
-    if (exe->find('/') == std::string::npos) {
-      result = ns2::popen("./" + (*exe) + " 2>&1");
-    } else {
-      result = ns2::popen((*exe) + " 2>&1");
-    }
-#endif
     if (!quiet) {
       printf("-- Return code of %s is %d\n", exe->c_str(), result.second);
       fflush(stdout);
@@ -147,7 +138,15 @@ int main2(int argc, char **argv) {
   // Keep only those that are executables
   for (size_t i = 0; i < globbed.size(); i++) {
     if (ns2::isexe(globbed[i])) {
+#ifdef NS2_IS_MSVC
       exes.push_back(prefix + globbed[i] + suffix);
+#else
+    if (globbed[i].find('/') == std::string::npos) {
+      exes.push_back(prefix + "./" + globbed[i] + suffix);
+    } else {
+      exes.push_back(prefix + globbed[i] + suffix);
+    }
+#endif
     } else {
       if (!quiet) {
         std::cout << "-- Warning: " << globbed[i]

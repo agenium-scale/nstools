@@ -287,8 +287,10 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
   std::string cmd;
   if (ci->type == compiler::infos_t::MSVC) {
     cmd = ci->path + " 1>" + shell::stringify(filename) + " 2>&1";
-  } else {
+  } else if (ci->type == compiler::infos_t::NVCC) {
     cmd = ci->path + " --version 1>" + shell::stringify(filename) + " 2>&1";
+  } else {
+    cmd = ci->path + " -v 1>" + shell::stringify(filename) + " 2>&1";
   }
   if (system(cmd.c_str()) != 0) {
     OUTPUT << "Command \"" << cmd << "\" fails" << std::endl;
@@ -304,7 +306,8 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
         line.find("Version") != std::string::npos ||
         (ci->type == compiler::infos_t::ICC &&
          line.find("icc (ICC) ") != std::string::npos) ||
-        line.find("release") != std::string::npos) {
+        (ci->type == compiler::infos_t::NVCC &&
+         line.find("release") != std::string::npos)) {
       digits = get_version_digits(line);
     }
   }

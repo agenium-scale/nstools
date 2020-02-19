@@ -25,6 +25,7 @@
 #include "shell.hpp"
 #include <cstdlib>
 #include <map>
+#include <ns2/process.hpp>
 #include <ns2/fs.hpp>
 #include <string>
 
@@ -75,6 +76,9 @@ int get_type(infos_t *ci, std::string const &str) {
   } else if (str == "icc") {
     ci->type = compiler::infos_t::ICC;
     return 0;
+  } else if (str == "nvcc") {
+    ci->type = compiler::infos_t::NVCC;
+    return 0;
   }
   return -1;
 }
@@ -97,8 +101,10 @@ static bool is_version_number(std::string const &str) {
 // ----------------------------------------------------------------------------
 
 static std::vector<std::string> get_version_digits(std::string const &str) {
-  std::vector<std::string> words =
-      ns2::split(ns2::replace(ns2::replace(str, '+', ' '), '-', ' '), ' ');
+  std::vector<std::string> words = ns2::split(
+      ns2::replace(ns2::replace(ns2::replace(str, 'V', ' '), '+', ' '), '-',
+                   ' '),
+      ' ');
   for (size_t i = 0; i < words.size(); i++) {
     if (is_version_number(words[i])) {
       return ns2::split(words[i], '.');
@@ -198,6 +204,57 @@ lbl_error_compiler:
 
 // ----------------------------------------------------------------------------
 
+static int get_host_nbits() {
+#ifdef _MSC_VER
+  // Returns 32 or 64 depending on the machine where nsconfig is running.
+  // We do not use sizeof(void*) or other compile time tricks as we can
+  // imagine a 32-bits nsconfig running on a 64-bits OS in which case this
+  // function has to return 64. On Windows this is easy: it suffices to look
+  // into the PROCESSOR_ARCHITECTURE environment variable. But this environment
+  // variable depends on the processus. For 32-bits processus running on a
+  // 64-bits system (WOW64 process) this variable is not set to correspondond
+  // to the 64-bits system. Moreover using the Win32 API to determine system
+  // informations via GetNativeSystemInfo or IsWow64Process does not work
+  // properly on ARM. The only Win32 API that does work properly is
+  // IsWow64Process2 but it is only available on Windows 10 and later. Another
+  // way is to run the native cmd.exe and echo %PROCESSOR_ARCHITECTURE%.
+  // But for WOW64 processes the system does file system redirections and
+  // %WINDIR%\system32 is in fact %WINDIR%\SysWOW64 and one has to use
+  // %WINDIR%\Sysnative. But the latter is only available for WOW64 processes.
+  // So the logic is the following:
+  // - If we have been compiled in 64 bits then we can only run on a 64 bits
+  //   system, so we return 64
+  // - Getting here means that we have been compiled in 32 bits mode in which
+  //   case %WINDIR%\SysWOW64 exists if and only if we are running on a 64 bits
+  //   system so we use GetSystemWow64DirectoryA.
+#ifdef _WIN64
+  return 64;
+#else
+  char buf[MAX_PATH];
+  unsigned int ret = GetSystemWow64DirectoryA(buf, MAX_PATH - 1);
+  if (ret == 0 && GetLastError() == ERROR_CALL_NOT_IMPLEMENTED) {
+    return 32;
+  } else {
+    return 64;
+  }
+#endif
+#else
+  // On Linux the situation is more simplier. We run the uname command and
+  // determine the system we are running on.
+  std::pair<std::string, int> ret = ns2::popen("uname -m");
+  if (ns2::startswith(ret.first, "x86_64") ||
+      ns2::startswith(ret.first, "aarch64") ||
+      ns2::startswith(ret.first, "arm64") ||
+      ns2::startswith(ret.first, "ppc64le")) {
+    return 64;
+  } else {
+    return 32;
+  }
+#endif
+}
+
+// ----------------------------------------------------------------------------
+
 static int get_version(std::vector<std::string> const &digits,
                        int nb_significant_digits) {
   int ret = 0;
@@ -214,11 +271,13 @@ static int get_version(std::vector<std::string> const &digits,
 
 // ----------------------------------------------------------------------------
 
-static void set_version_arch(infos_t *ci, parser::infos_t const &pi) {
+static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
+  parser::infos_t &pi = *pi_;
   // variables must be declared here because of all the goto's
   ns2::ifile_t in;
   std::vector<std::string> digits;
   std::string line;
+  infos_t host_ci;
 
   // filename that will receive compiler infos
   std::string filename(ns2::sanitize(
@@ -228,12 +287,7 @@ static void set_version_arch(infos_t *ci, parser::infos_t const &pi) {
   std::string cmd;
   if (ci->type == compiler::infos_t::MSVC) {
     cmd = ci->path + " 1>" + shell::stringify(filename) + " 2>&1";
-  } else if (ci->type == compiler::infos_t::GCC) {
-    cmd = ci->path + " --verbose 1>" + shell::stringify(filename) + " 2>&1";
-  } else if (ci->type == compiler::infos_t::Clang ||
-             ci->type == compiler::infos_t::ARMClang) {
-    cmd = ci->path + " --version 1>" + shell::stringify(filename) + " 2>&1";
-  } else if (ci->type == compiler::infos_t::ICC) {
+  } else {
     cmd = ci->path + " --version 1>" + shell::stringify(filename) + " 2>&1";
   }
   if (system(cmd.c_str()) != 0) {
@@ -249,7 +303,8 @@ static void set_version_arch(infos_t *ci, parser::infos_t const &pi) {
     if (line.find("version") != std::string::npos ||
         line.find("Version") != std::string::npos ||
         (ci->type == compiler::infos_t::ICC &&
-         line.find("icc (ICC) ") != std::string::npos)) {
+         line.find("icc (ICC) ") != std::string::npos) ||
+        line.find("release") != std::string::npos) {
       digits = get_version_digits(line);
     }
   }
@@ -280,6 +335,9 @@ static void set_version_arch(infos_t *ci, parser::infos_t const &pi) {
       goto lbl_error_version;
     }
     ci->version = get_version(digits, 3);
+    break;
+  case compiler::infos_t::NVCC:
+    ci->version = get_version(digits, 2);
     break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
@@ -339,9 +397,16 @@ static void set_version_arch(infos_t *ci, parser::infos_t const &pi) {
     }
     break;
   case infos_t::ICC:
-    // FIXME: Hard coded x86_64
     ci->arch = infos_t::Intel;
-    ci->nbits = 64;
+    ci->nbits = get_host_nbits(); // For ICC default is like host
+    break;
+  case infos_t::NVCC:
+    // For NVCC it depends on the host compiler and by default the
+    // host compiler we choose for nvcc is c++, the one that can be given at
+    // nsconfig command line.
+    host_ci = get("c++", &pi);
+    ci->arch = host_ci.arch;
+    ci->nbits = host_ci.nbits;
     break;
   case infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
@@ -384,7 +449,7 @@ infos_t get(std::string name, parser::infos_t *pi_) {
 
   // if ci was not fully filled then fill it
   if (!ci.fully_filled) {
-    set_version_arch(&ci, pi);
+    set_version_arch(&ci, &pi);
     ci.fully_filled = true;
     pi.compilers[name] = ci;
   }
@@ -411,6 +476,8 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "msvc";
   case compiler::infos_t::ICC:
     return "icc";
+  case compiler::infos_t::NVCC:
+    return "nvcc";
   case compiler::infos_t::None:
     return "none";
   }

@@ -34,6 +34,27 @@ namespace shell {
 
 // ----------------------------------------------------------------------------
 
+static std::vector<std::string> gcc_clang(std::string const &,
+                                          std::vector<parser::token_t> const &,
+                                          compiler::infos_t const &,
+                                          parser::infos_t *);
+
+static std::vector<std::string> icc(std::string const &,
+                                    std::vector<parser::token_t> const &,
+                                    compiler::infos_t const &,
+                                    parser::infos_t *);
+
+static std::vector<std::string> msvc(std::vector<parser::token_t> const &,
+                                     compiler::infos_t const &,
+                                     parser::infos_t *);
+
+static std::vector<std::string> nvcc(compiler::infos_t const &,
+                                     std::vector<parser::token_t> const &,
+                                     compiler::infos_t const &,
+                                     parser::infos_t *);
+
+// ----------------------------------------------------------------------------
+
 std::string stringify(std::string const &str) {
   if (str.find(' ') != std::string::npos ||
       str.find('\t') != std::string::npos) {
@@ -408,12 +429,60 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
 
 // ----------------------------------------------------------------------------
 
-static std::string gcc_clang(std::string const &compiler,
-                             std::vector<parser::token_t> const &tokens,
-                             compiler::infos_t const &ci,
-                             parser::infos_t *pi_) {
-  std::vector<std::string> temp;
-  temp.push_back(compiler);
+static std::vector<std::string>
+comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
+     parser::infos_t *pi_) {
+  parser::infos_t &pi = *pi_;
+  switch (ci.type) {
+  case compiler::infos_t::GCC:
+  case compiler::infos_t::Clang:
+  case compiler::infos_t::ARMClang:
+    return gcc_clang(ci.path, tokens, ci, &pi);
+  case compiler::infos_t::MSVC:
+    return msvc(tokens, ci, &pi);
+  case compiler::infos_t::ICC:
+    return icc(ci.path, tokens, ci, &pi);
+  case compiler::infos_t::NVCC: {
+    compiler::infos_t host_ci = compiler::get("c++", &pi);
+    return nvcc(ci, tokens, host_ci, &pi);
+  }
+  case compiler::infos_t::None:
+    NS2_THROW(std::runtime_error, "Invalid compiler");
+  }
+  return std::vector<std::string>();
+}
+
+// ----------------------------------------------------------------------------
+
+static std::string get_rpath_argument(std::string const &directory,
+                                      compiler::infos_t const &ci) {
+  switch (ci.type) {
+  case compiler::infos_t::None:
+  case compiler::infos_t::NVCC:
+    NS2_THROW(std::runtime_error, "Invalid compiler");
+  case compiler::infos_t::GCC:
+  case compiler::infos_t::Clang:
+  case compiler::infos_t::ARMClang:
+  case compiler::infos_t::ICC:
+    if (directory == ".") {
+      return "-rpath='$ORIGIN'";
+    } else {
+      return "-rpath=" + directory;
+    }
+  case compiler::infos_t::MSVC:
+    return std::string();
+  }
+  return std::string();
+}
+
+// ----------------------------------------------------------------------------
+
+static std::vector<std::string>
+gcc_clang(std::string const &compiler,
+          std::vector<parser::token_t> const &tokens,
+          compiler::infos_t const &ci, parser::infos_t *pi_) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
   parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   args["-std=c89"] = "-std=c89 -pedantic";
@@ -457,8 +526,6 @@ static std::string gcc_clang(std::string const &compiler,
   args["-msve512"] = "-march=armv8-a+sve -msve-vector-bits=512";
   args["-msve1024"] = "-march=armv8-a+sve -msve-vector-bits=1024";
   args["-msve2048"] = "-march=armv8-a+sve -msve-vector-bits=2048";
-
-  // Power extensions
   args["-maltivec"] = "-maltivec";
   args["-mcpu=power7"] = "-mcpu=power7";
 
@@ -484,17 +551,17 @@ static std::string gcc_clang(std::string const &compiler,
     // performs no action but displaying some infos, so no need to pass
     // other flags that will be ignored
     if (arg == "--version") {
-      return temp[0] + " --version";
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("--version");
+      return ret;
     }
-    if (arg == "-lpthread") {
-      temp.push_back("-lpthread");
-      continue;
-    } else if (arg == "-lm") {
-      temp.push_back("-lm");
+    if (arg == "-lpthread" || arg == "-lm") {
+      ret.push_back(arg);
       continue;
     } else if (arg == "-L.") {
-      temp.push_back("-L.");
-      temp.push_back("'-Wl,-rpath=$ORIGIN'");
+      ret.push_back("-L.");
+      ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
       continue;
     }
     if (arg[0] == '-') {
@@ -502,42 +569,42 @@ static std::string gcc_clang(std::string const &compiler,
         if (arg.size() == 3) {
           die("no file/directory given here", tokens[i].cursor);
         }
-        temp.push_back("-l:" + shell::ify(&arg[3]));
+        ret.push_back("-l:" + shell::ify(&arg[3]));
       } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
         if (arg.size() == 2) {
           die("no file/directory given here", tokens[i].cursor);
         }
         if (arg[1] == 'l') {
-          temp.push_back("-l" + shell::ify(lib_basename(&arg[2])));
+          ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
         } else if (arg[1] == 'L') {
           std::string path(shell::ify(&arg[2]));
-          temp.push_back("-L" + path);
-          temp.push_back("-Wl,-rpath=" + path);
+          ret.push_back("-L" + path);
+          ret.push_back("-Wl," + get_rpath_argument(path, ci));
         } else {
-          temp.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
+          ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
         }
       } else if (arg[1] == 'D') {
         if (arg.size() == 2) {
           die("no macro name given here", tokens[i].cursor);
         }
-        temp.push_back(arg);
+        ret.push_back(arg);
       } else {
         std::map<std::string, std::string>::const_iterator it = args.find(arg);
         if (it != args.end()) {
           if (it->second.size() > 0) {
-            temp.push_back(it->second);
+            ret.push_back(it->second);
           } else if (pi.verbosity >= VERBOSITY_DEBUG) {
             WARNING << "Option " << arg << " is not supported or known by "
                     << compiler << ", ignoring it" << std::endl;
           }
         } else if (pi.action == parser::infos_t::Permissive) {
-          temp.push_back(arg);
+          ret.push_back(arg);
         } else {
           die("unknown compiler option", tokens[i].cursor);
         }
       }
     } else {
-      temp.push_back(stringify(ns2::sanitize(arg)));
+      ret.push_back(stringify(ns2::sanitize(arg)));
     }
   }
 
@@ -545,27 +612,28 @@ static std::string gcc_clang(std::string const &compiler,
   // the parser that it's GCC specific
   if (pi.generate_header_deps_flags) {
     pi.current_compiler.type = compiler::infos_t::GCC;
-    temp.push_back("@@autodeps_flags");
+    ret.push_back("@@autodeps_flags");
   }
 
-  return ns2::join(uniq(temp), " ");
+  return uniq(ret);
 }
 
 // ----------------------------------------------------------------------------
 
-static std::string msvc(std::vector<parser::token_t> const &tokens,
-                        compiler::infos_t const &ci, parser::infos_t *pi_) {
+static std::vector<std::string>
+msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
+     parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
   enum stop_stage_t { Assemble, Compile, CompileLink };
   stop_stage_t stop_stage = CompileLink;
   bool debug_infos = false;
   bool ffast_math = false;
   std::string output;
-  std::vector<std::string> temp;
-  temp.push_back("cl");
-  temp.push_back("/nologo");
-  temp.push_back("/EHsc");
-  temp.push_back("/D_CRT_SECURE_NO_WARNINGS");
+  std::vector<std::string> ret;
+  ret.push_back("cl");
+  ret.push_back("/nologo");
+  ret.push_back("/EHsc");
+  ret.push_back("/D_CRT_SECURE_NO_WARNINGS");
 
   std::map<std::string, std::string> args;
   args["-std=c89"] = "";
@@ -642,9 +710,11 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
     // The equivalent of --version in MSVC is to call the compiler with
     // no arguments
     if (arg == "--version") {
-      return "cl";
+      ret.clear();
+      ret.push_back("cl");
+      return ret;
     } else if (arg == "-lpthread") {
-      temp.push_back("/MT");
+      ret.push_back("/MT");
       continue;
     } else if (arg == "-lm") {
       continue;
@@ -666,15 +736,15 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
         parser::die("no file given here", tokens[i].cursor);
       }
       if (arg[1] == 'I') {
-        temp.push_back("/I" + shell::ify(arg.c_str() + 2));
+        ret.push_back("/I" + shell::ify(arg.c_str() + 2));
       } else if (arg[1] == 'D') {
-        temp.push_back("/D" + stringify(arg.c_str() + 2));
+        ret.push_back("/D" + stringify(arg.c_str() + 2));
       } else if (arg[1] == 'L') {
         linker_args.push_back("/LIBPATH:" + shell::ify(arg.c_str() + 2));
       } else if (arg[1] == 'l' && arg[2] == ':') {
-        temp.push_back(shell::ify(&arg[3]));
+        ret.push_back(shell::ify(&arg[3]));
       } else if (arg[1] == 'l') {
-        temp.push_back(
+        ret.push_back(
             shell::ify("lib" + std::string(arg.c_str() + 2) + ".lib"));
       } else if (arg == "-o") {
         if (i == tokens.size() - 1) {
@@ -693,36 +763,34 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
             debug_infos = true;
           }
           if (it->second.size() > 0) {
-            temp.push_back(it->second);
+            ret.push_back(it->second);
           } else if (pi.verbosity >= VERBOSITY_DEBUG) {
             WARNING << "Option " << arg << " is not supported or known by msvc"
                     << ", ignoring it" << std::endl;
           }
         } else if (pi.action == parser::infos_t::Permissive) {
-          temp.push_back(arg);
+          ret.push_back(arg);
         } else {
           parser::die("unknown compiler option", tokens[i].cursor);
         }
       }
     } else {
-      temp.push_back(shell::ify(arg));
+      ret.push_back(shell::ify(arg));
     }
   }
 
   // Construct resources directory path. This is necessary when facing the
   // following situation: MSVC does always produce object files and leave
   // them. Their name is crafted wrt the source file only. Thus compiling in
-  // parallel the same source file (with different compilation falgs) leads to
+  // parallel the same source file (with different compilation flags) leads to
   // two different cl.exe processes writing to the same object file and causes
   // "Access denied" errors and failed compilation. Thus for each compilation
   // nsconfig creates a directory whose name is chosen wrt to the output name
   // given by the user only and tells MSVC to store in this directory all
   // "side" files.
-  std::string resdir;
-  if (output.size() == 0) {
-    resdir = "resources\\";
-  } else {
-    resdir = shell::ify(ns2::sanitize(output) + ".resources\\");
+  std::string resdir("cl.exe-side-files\\");
+  if (output.size() > 0) {
+    resdir += shell::ify(ns2::sanitize(output) + "-side-files\\");
   }
 
   // Generate output flag wrt stop_stage. This is rather different from
@@ -736,61 +804,59 @@ static std::string msvc(std::vector<parser::token_t> const &tokens,
   if (output.size() > 0) {
     switch (stop_stage) {
     case Assemble:
-      temp.push_back("/Fa" + shell::ify(output));
-      temp.push_back("/Fe" + resdir);
-      temp.push_back("/Fo" + resdir);
+      ret.push_back("/Fa" + shell::ify(output));
+      ret.push_back("/Fe" + resdir);
+      ret.push_back("/Fo" + resdir);
       break;
     case Compile:
-      temp.push_back("/Fo" + shell::ify(output));
+      ret.push_back("/Fo" + shell::ify(output));
       break;
     case CompileLink:
-      temp.push_back("/Fe" + shell::ify(output));
-      temp.push_back("/Fo" + resdir);
+      ret.push_back("/Fe" + shell::ify(output));
+      ret.push_back("/Fo" + resdir);
       break;
     }
   }
 
   // we always put debug infos in the resdir directory
   if (debug_infos) {
-    temp.push_back("/Fd" + resdir);
+    ret.push_back("/Fd" + resdir);
   }
 
   // if we have been asked to output include files then do it and tell the
   // the parser that it's MSVC specific
   if (pi.generate_header_deps_flags) {
-    temp.push_back("@@autodeps_flags");
+    ret.push_back("@@autodeps_flags");
     pi.current_compiler.type = compiler::infos_t::MSVC;
   }
 
   // add ffast-math compiler flag
   if (ffast_math) {
-    temp.push_back("/fp:fast");
+    ret.push_back("/fp:fast");
   } else {
-    temp.push_back("/fp:strict");
+    ret.push_back("/fp:strict");
   }
 
   // finally add linker flags
   if (linker_args.size() > 0) {
-    temp.push_back("/link");
-    temp.insert(temp.end(), linker_args.begin(), linker_args.end());
+    ret.push_back("/link");
+    ret.insert(ret.end(), linker_args.begin(), linker_args.end());
   }
 
   if (debug_infos || stop_stage != Assemble) {
-    return "cmd /c ( if not exist " + resdir + " md " + resdir + " ) & " +
-           ns2::join(uniq(temp), " ");
-  } else {
-    return ns2::join(uniq(temp), " ");
+    ret[0] = "cmd /c ( if not exist " + resdir + " md " + resdir + " ) & cl";
   }
+  return uniq(ret);
 }
 
 // ----------------------------------------------------------------------------
 
-static std::string icc(std::string const &compiler,
-                       std::vector<parser::token_t> const &tokens,
-                       compiler::infos_t const & /*ci*/,
-                       parser::infos_t *pi_) {
-  std::vector<std::string> temp;
-  temp.push_back(compiler);
+static std::vector<std::string> icc(std::string const &compiler,
+                                    std::vector<parser::token_t> const &tokens,
+                                    compiler::infos_t const &ci,
+                                    parser::infos_t *pi_) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
   parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   bool ffast_math = false;
@@ -852,17 +918,20 @@ static std::string icc(std::string const &compiler,
     // performs no action but displaying some infos, so no need to pass
     // other flags that will be ignored
     if (arg == "--version") {
-      return temp[0] + " --version";
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("--version");
+      return ret;
     }
     if (arg == "-lpthread") {
-      temp.push_back("-lpthread");
+      ret.push_back("-lpthread");
       continue;
     } else if (arg == "-lm") {
-      temp.push_back("-lm");
+      ret.push_back("-lm");
       continue;
     } else if (arg == "-L.") {
-      temp.push_back("-L.");
-      temp.push_back("'-Wl,-rpath=$ORIGIN'");
+      ret.push_back("-L.");
+      ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
       continue;
     } else if (arg == "-ffast-math") {
       ffast_math = true;
@@ -873,59 +942,173 @@ static std::string icc(std::string const &compiler,
         if (arg.size() == 3) {
           die("no file/directory given here", tokens[i].cursor);
         }
-        temp.push_back("-l:" + shell::ify(&arg[3]));
+        ret.push_back("-l:" + shell::ify(&arg[3]));
       } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
         if (arg.size() == 2) {
           die("no file/directory given here", tokens[i].cursor);
         }
         if (arg[1] == 'l') {
-          temp.push_back("-l" + shell::ify(lib_basename(&arg[2])));
+          ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
         } else if (arg[1] == 'L') {
           std::string path(shell::ify(&arg[2]));
-          temp.push_back("-L" + path);
-          temp.push_back("-Wl,-rpath=" + path);
+          ret.push_back("-L" + path);
+          ret.push_back("-Wl," + get_rpath_argument(path, ci));
         } else {
-          temp.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
+          ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
         }
       } else if (arg[1] == 'D') {
         if (arg.size() == 2) {
           die("no macro name given here", tokens[i].cursor);
         }
-        temp.push_back(arg);
+        ret.push_back(arg);
       } else {
         std::map<std::string, std::string>::const_iterator it = args.find(arg);
         if (it != args.end()) {
           if (it->second.size() > 0) {
-            temp.push_back(it->second);
+            ret.push_back(it->second);
           } else if (pi.verbosity >= VERBOSITY_DEBUG) {
             WARNING << "Option " << arg << " is not supported or known by icc"
                     << ", ignoring it" << std::endl;
           }
         } else if (pi.action == parser::infos_t::Permissive) {
-          temp.push_back(arg);
+          ret.push_back(arg);
         } else {
           die("unknown compiler option", tokens[i].cursor);
         }
       }
     } else {
-      temp.push_back(stringify(ns2::sanitize(arg)));
+      ret.push_back(stringify(ns2::sanitize(arg)));
     }
   }
 
   if (!ffast_math) {
     // Cf. https://scicomp.stackexchange.com/questions/20815
     //     /performance-of-icc-main-cpp-g-ffast-math-main-cpp
-    temp.push_back("-fp-model strict");
+    ret.push_back("-fp-model strict");
   }
 
   // if we have been asked to output include files then do it and tell the
   // the parser that it's GCC specific
   if (pi.generate_header_deps_flags) {
     pi.current_compiler.type = compiler::infos_t::GCC;
-    temp.push_back("@@autodeps_flags");
+    ret.push_back("@@autodeps_flags");
   }
 
-  return ns2::join(uniq(temp), " ");
+  return uniq(ret);
+}
+
+// ----------------------------------------------------------------------------
+
+static std::vector<std::string>
+nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
+     compiler::infos_t const &host_ci, parser::infos_t *pi_) {
+  // NVCC does not support much options, almost all of them are to be passed
+  // to the host compiler. The logic here is different than for other
+  // compilers: we remove from `tokens` arguments that are nvcc specific,
+  // pass the rest of them for host compiler translation and get back the list
+  // that we include in the command line. We make no effort to keep the order
+  // of arguments as nvcc reorders them before passing them to the host
+  // compiler.
+
+  parser::infos_t &pi = *pi_;
+  std::vector<std::string> ret;
+  std::vector<parser::token_t> host_tokens(1);
+  ret.push_back(ci.path);
+  ret.push_back("-x cu");
+  ret.push_back("-ccbin " + host_ci.path);
+  ret.push_back("-m" + ns2::to_string(ci.nbits));
+  for (size_t i = 1; i < tokens.size(); i++) {
+    std::string const &arg = tokens[i].text;
+    // The effect of --version on the command line is that the compiler
+    // performs no action but displaying some infos, so no need to pass
+    // other flags that will be ignored
+    if (arg == "--version") {
+      ret.clear();
+      ret.push_back(ci.path);
+      ret.push_back("--version");
+      return ret;
+    }
+    if (arg == "-c" || arg == "-o" || arg == "-shared") {
+      ret.push_back(arg);
+      continue;
+    }
+    if (arg == "-S") {
+      ret.push_back("--ptx");
+      continue;
+    }
+    if (arg == "-g") {
+      ret.push_back("-g -G -lineinfo");
+      continue;
+    }
+    if (arg == "-lm" || arg == "-lpthread") {
+      host_tokens.push_back(tokens[i]);
+      continue;
+    }
+    if (arg == "-std=c++03" || arg == "-std=c++11" || arg == "-std=c++14") {
+      ret.push_back("-std c++" + arg.substr(8));
+      host_tokens.push_back(tokens[i]);
+      continue;
+    }
+    if (arg == "-fast-math") {
+      ret.push_back("--use_fast_math");
+      host_tokens.push_back(tokens[i]);
+      continue;
+    }
+    if (arg[0] == '-') {
+      if (arg[1] == 'l' && arg[2] == ':') {
+        if (arg.size() == 3) {
+          die("no file/directory given here", tokens[i].cursor);
+        }
+        ret.push_back("-l:" + shell::ify(&arg[3]));
+      } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
+        if (arg.size() == 2) {
+          die("no file/directory given here", tokens[i].cursor);
+        }
+        if (arg[1] == 'l') {
+          ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
+        } else if (arg[1] == 'L') {
+          std::string path(shell::ify(&arg[2]));
+          ret.push_back("-L" + path);
+          std::string rpath(get_rpath_argument(path, host_ci));
+          if (rpath.size() > 0) {
+            ret.push_back("-Xlinker " + rpath);
+          }
+        } else {
+          ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
+        }
+      } else if (arg[1] == 'D') {
+        if (arg.size() == 2) {
+          die("no macro name given here", tokens[i].cursor);
+        }
+        ret.push_back(arg);
+      } else {
+        host_tokens.push_back(tokens[i]);
+      }
+    } else {
+      ret.push_back(stringify(ns2::sanitize(arg)));
+    }
+  }
+
+  std::vector<std::string> host_ret = comp(host_ci, host_tokens, &pi);
+  // Remove first argument as it is the name of the executable. Note that
+  // for MSVC is it the name of the executable + the making of the directory
+  // for the unwanted-badly-named side files generated by cl.exe.
+  host_ret.erase(host_ret.begin());
+  if (host_ret.size() > 0) {
+    std::string host_args;
+    for (size_t i = 0; i < host_ret.size(); i++) {
+      if (i > 0) {
+        host_args += ",";
+      }
+      if (host_ret[i].find(" ") != std::string::npos) {
+        host_args += "\"" + host_ret[i] + "\"";
+      } else {
+        host_args += host_ret[i];
+      }
+    }
+    ret.push_back("-Xcompiler " + host_args);
+  }
+  return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -955,24 +1138,9 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
              cmd == "g++" || cmd == "clang" || cmd == "clang++" ||
              cmd == "mingw" || cmd == "armclang" || cmd == "armclang++" ||
-             cmd == "icc") {
+             cmd == "icc" || cmd == "nvcc") {
     compiler::infos_t ci = compiler::get(cmd, &pi);
-    switch (ci.type) {
-    case compiler::infos_t::GCC:
-    case compiler::infos_t::Clang:
-    case compiler::infos_t::ARMClang:
-      return gcc_clang(ci.path, tokens, ci, &pi);
-      break;
-    case compiler::infos_t::MSVC:
-      return msvc(tokens, ci, &pi);
-      break;
-    case compiler::infos_t::ICC:
-      return icc(ci.path, tokens, ci, &pi);
-      break;
-    case compiler::infos_t::None:
-      NS2_THROW(std::runtime_error, "Invalid compiler");
-      break;
-    }
+    return ns2::join(comp(ci, tokens, &pi), " ");
   } else if (pi.action == parser::infos_t::Permissive) {
     return raw(tokens);
   } else {

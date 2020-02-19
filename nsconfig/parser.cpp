@@ -474,6 +474,7 @@ inline std::string get_ext(compiler::infos_t::type_t type,
 #endif
     }
     break;
+  case compiler::infos_t::NVCC:
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;

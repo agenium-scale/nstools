@@ -42,8 +42,8 @@ namespace compiler {
 // ----------------------------------------------------------------------------
 
 struct infos_t {
-  enum type_t { None, GCC, Clang, MSVC, ARMClang, ICC } type;
-  enum arch_t { Intel, ARM } arch;
+  enum type_t { None, GCC, Clang, MSVC, ARMClang, ICC, NVCC } type;
+  enum arch_t { Intel, ARM, NVIDIA } arch;
   enum lang_t { Unknown, C, CPP } lang;
   std::string name;
   std::string path;

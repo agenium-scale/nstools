@@ -93,7 +93,7 @@ namespace ns2 {
 // ----------------------------------------------------------------------------
 
 #if defined(NS2_IS_MSVC)
-#if defined(_M_AMD64)
+#if defined(_WIN64)
 typedef __int64 int_t;
 #else
 typedef __int32 int_t;

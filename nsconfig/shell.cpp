@@ -465,7 +465,7 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::ARMClang:
   case compiler::infos_t::ICC:
     if (directory == ".") {
-      return "-rpath='$ORIGIN'";
+      return "-rpath=$ORIGIN";
     } else {
       return "-rpath=" + directory;
     }

@@ -21,7 +21,7 @@
 # SOFTWARE.
 
 build_file a.out deps a.cpp
-	nvcc -Wall -La/b -lb a.cpp -o a.out
+	hcc -Wall -La/b -lb a.cpp -o a.out
 
 #set o         = @obj_ext
 #set lib       = @shared_link_ext

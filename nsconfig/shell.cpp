@@ -39,6 +39,11 @@ static std::vector<std::string> gcc_clang(std::string const &,
                                           compiler::infos_t const &,
                                           parser::infos_t *);
 
+static std::vector<std::string> hipcc_hcc(std::string const &,
+                                          std::vector<parser::token_t> const &,
+                                          compiler::infos_t const &,
+                                          parser::infos_t *);
+
 static std::vector<std::string> icc(std::string const &,
                                     std::vector<parser::token_t> const &,
                                     compiler::infos_t const &,
@@ -446,6 +451,9 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
     compiler::infos_t host_ci = compiler::get("c++", &pi);
     return nvcc(ci, tokens, host_ci, &pi);
   }
+  case compiler::infos_t::HIPCC:
+  case compiler::infos_t::HCC:
+    return hipcc_hcc(ci.path, tokens, ci, &pi);
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
   }
@@ -464,6 +472,8 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
   case compiler::infos_t::ICC:
+  case compiler::infos_t::HIPCC:
+  case compiler::infos_t::HCC:
     if (directory == ".") {
       return "-rpath=$ORIGIN";
     } else {
@@ -473,6 +483,68 @@ static std::string get_rpath_argument(std::string const &directory,
     return std::string();
   }
   return std::string();
+}
+
+// ----------------------------------------------------------------------------
+
+static std::vector<std::string>
+translate_single_arg(std::string const &compiler,
+                     std::map<std::string, std::string> const &args,
+                     compiler::infos_t const &ci, parser::token_t const &token,
+                     parser::infos_t const &pi) {
+  std::vector<std::string> ret;
+  std::string const &arg = token.text;
+  if (arg == "-lpthread" || arg == "-lm") {
+    ret.push_back(arg);
+    return ret;
+  } else if (arg == "-L.") {
+    ret.push_back("-L.");
+    ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
+    return ret;
+  }
+  if (arg[0] == '-') {
+    if (arg[1] == 'l' && arg[2] == ':') {
+      if (arg.size() == 3) {
+        die("no file/directory given here", token.cursor);
+      }
+      ret.push_back("-l:" + shell::ify(&arg[3]));
+    } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
+      if (arg.size() == 2) {
+        die("no file/directory given here", token.cursor);
+      }
+      if (arg[1] == 'l') {
+        ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
+      } else if (arg[1] == 'L') {
+        std::string path(shell::ify(&arg[2]));
+        ret.push_back("-L" + path);
+        ret.push_back("-Wl," + get_rpath_argument(path, ci));
+      } else {
+        ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
+      }
+    } else if (arg[1] == 'D') {
+      if (arg.size() == 2) {
+        die("no macro name given here", token.cursor);
+      }
+      ret.push_back(arg);
+    } else {
+      std::map<std::string, std::string>::const_iterator it = args.find(arg);
+      if (it != args.end()) {
+        if (it->second.size() > 0) {
+          ret.push_back(it->second);
+        } else if (pi.verbosity >= VERBOSITY_DEBUG) {
+          WARNING << "Option " << arg << " is not supported or known by "
+                  << compiler << ", ignoring it" << std::endl;
+        }
+      } else if (pi.action == parser::infos_t::Permissive) {
+        ret.push_back(arg);
+      } else {
+        die("unknown compiler option", token.cursor);
+      }
+    }
+  } else {
+    ret.push_back(stringify(ns2::sanitize(arg)));
+  }
+  return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -556,56 +628,9 @@ gcc_clang(std::string const &compiler,
       ret.push_back("--version");
       return ret;
     }
-    if (arg == "-lpthread" || arg == "-lm") {
-      ret.push_back(arg);
-      continue;
-    } else if (arg == "-L.") {
-      ret.push_back("-L.");
-      ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
-      continue;
-    }
-    if (arg[0] == '-') {
-      if (arg[1] == 'l' && arg[2] == ':') {
-        if (arg.size() == 3) {
-          die("no file/directory given here", tokens[i].cursor);
-        }
-        ret.push_back("-l:" + shell::ify(&arg[3]));
-      } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
-        if (arg.size() == 2) {
-          die("no file/directory given here", tokens[i].cursor);
-        }
-        if (arg[1] == 'l') {
-          ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
-        } else if (arg[1] == 'L') {
-          std::string path(shell::ify(&arg[2]));
-          ret.push_back("-L" + path);
-          ret.push_back("-Wl," + get_rpath_argument(path, ci));
-        } else {
-          ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
-        }
-      } else if (arg[1] == 'D') {
-        if (arg.size() == 2) {
-          die("no macro name given here", tokens[i].cursor);
-        }
-        ret.push_back(arg);
-      } else {
-        std::map<std::string, std::string>::const_iterator it = args.find(arg);
-        if (it != args.end()) {
-          if (it->second.size() > 0) {
-            ret.push_back(it->second);
-          } else if (pi.verbosity >= VERBOSITY_DEBUG) {
-            WARNING << "Option " << arg << " is not supported or known by "
-                    << compiler << ", ignoring it" << std::endl;
-          }
-        } else if (pi.action == parser::infos_t::Permissive) {
-          ret.push_back(arg);
-        } else {
-          die("unknown compiler option", tokens[i].cursor);
-        }
-      }
-    } else {
-      ret.push_back(stringify(ns2::sanitize(arg)));
-    }
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi);
+    ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
   // if we have been asked to output include files then do it and tell the
@@ -922,63 +947,13 @@ static std::vector<std::string> icc(std::string const &compiler,
       ret.push_back(compiler);
       ret.push_back("--version");
       return ret;
-    }
-    if (arg == "-lpthread") {
-      ret.push_back("-lpthread");
-      continue;
-    } else if (arg == "-lm") {
-      ret.push_back("-lm");
-      continue;
-    } else if (arg == "-L.") {
-      ret.push_back("-L.");
-      ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
-      continue;
     } else if (arg == "-ffast-math") {
       ffast_math = true;
       continue;
     }
-    if (arg[0] == '-') {
-      if (arg[1] == 'l' && arg[2] == ':') {
-        if (arg.size() == 3) {
-          die("no file/directory given here", tokens[i].cursor);
-        }
-        ret.push_back("-l:" + shell::ify(&arg[3]));
-      } else if (arg[1] == 'I' || arg[1] == 'L' || arg[1] == 'l') {
-        if (arg.size() == 2) {
-          die("no file/directory given here", tokens[i].cursor);
-        }
-        if (arg[1] == 'l') {
-          ret.push_back("-l" + shell::ify(lib_basename(&arg[2])));
-        } else if (arg[1] == 'L') {
-          std::string path(shell::ify(&arg[2]));
-          ret.push_back("-L" + path);
-          ret.push_back("-Wl," + get_rpath_argument(path, ci));
-        } else {
-          ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
-        }
-      } else if (arg[1] == 'D') {
-        if (arg.size() == 2) {
-          die("no macro name given here", tokens[i].cursor);
-        }
-        ret.push_back(arg);
-      } else {
-        std::map<std::string, std::string>::const_iterator it = args.find(arg);
-        if (it != args.end()) {
-          if (it->second.size() > 0) {
-            ret.push_back(it->second);
-          } else if (pi.verbosity >= VERBOSITY_DEBUG) {
-            WARNING << "Option " << arg << " is not supported or known by icc"
-                    << ", ignoring it" << std::endl;
-          }
-        } else if (pi.action == parser::infos_t::Permissive) {
-          ret.push_back(arg);
-        } else {
-          die("unknown compiler option", tokens[i].cursor);
-        }
-      }
-    } else {
-      ret.push_back(stringify(ns2::sanitize(arg)));
-    }
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi);
+    ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
   if (!ffast_math) {
@@ -1137,6 +1112,91 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 
 // ----------------------------------------------------------------------------
 
+static std::vector<std::string>
+hipcc_hcc(std::string const &compiler,
+          std::vector<parser::token_t> const &tokens,
+          compiler::infos_t const &ci, parser::infos_t *pi_) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
+  parser::infos_t &pi = *pi_;
+  std::map<std::string, std::string> args;
+  args["-std=c89"] = "-std=c89 -pedantic";
+  args["-std=c99"] = "-std=c99 -pedantic";
+  args["-std=c11"] = "-std=c11 -pedantic";
+  args["-std=c++98"] = "-std=c++98 -pedantic";
+  args["-std=c++03"] = "-std=c++03 -pedantic";
+  args["-std=c++11"] = "-std=c++11 -pedantic";
+  args["-std=c++14"] = "-std=c++14 -pedantic";
+  args["-std=c++17"] = "-std=c++17 -pedantic";
+  args["-O0"] = "-O0";
+  args["-O1"] = "-O1";
+  args["-O2"] = "-O2";
+  args["-O3"] = "-O3";
+  args["-Og"] = "-Og";
+  args["-ffast-math"] = "-ffast-math";
+  args["-g"] = "-g";
+  args["-S"] = "-S";
+  args["-c"] = "-c";
+  args["-o"] = "-o";
+  args["-Wall"] =
+      "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
+  args["-fPIC"] = "-fPIC";
+  args["-msse"] = "";
+  args["-msse2"] = "";
+  args["-msse3"] = "";
+  args["-mssse3"] = "";
+  args["-msse41"] = "";
+  args["-msse42"] = "";
+  args["-mavx"] = "";
+  args["-mavx2"] = "";
+  args["-mavx512_knl"] = "";
+  args["-mavx512_skylake"] = "";
+  args["-mneon64"] = "";
+  args["-mneon128"] = "";
+  args["-maarch64"] = "";
+  args["-msve"] = "";
+  args["-msve128"] = "";
+  args["-msve256"] = "";
+  args["-msve512"] = "";
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
+  args["-maltivec"] = "";
+  args["-mcpu=power7"] = "";
+  args["-mfma"] = "";
+  args["-mfp16"] = "";
+  args["-fopenmp"] = "-fopenmp";
+  args["-shared"] = "-shared";
+  args["--coverage"] = "--coverage";
+  args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
+
+  for (size_t i = 1; i < tokens.size(); i++) {
+    std::string const &arg = tokens[i].text;
+    // The effect of --version on the command line is that the compiler
+    // performs no action but displaying some infos, so no need to pass
+    // other flags that will be ignored
+    if (arg == "--version") {
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("--version");
+      return ret;
+    }
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi);
+    ret.insert(ret.end(), buf.begin(), buf.end());
+  }
+
+  // if we have been asked to output include files then do it and tell the
+  // the parser that it's GCC specific
+  if (pi.generate_header_deps_flags) {
+    pi.current_compiler.type = compiler::infos_t::GCC;
+    ret.push_back("@@autodeps_flags");
+  }
+
+  return uniq(ret);
+}
+
+// ----------------------------------------------------------------------------
+
 static std::string single_command(std::vector<parser::token_t> const &tokens,
                                   parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
@@ -1162,7 +1222,7 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
              cmd == "g++" || cmd == "clang" || cmd == "clang++" ||
              cmd == "mingw" || cmd == "armclang" || cmd == "armclang++" ||
-             cmd == "icc" || cmd == "nvcc") {
+             cmd == "icc" || cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc") {
     compiler::infos_t ci = compiler::get(cmd, &pi);
     return ns2::join(comp(ci, tokens, &pi), " ");
   } else if (pi.action == parser::infos_t::Permissive) {

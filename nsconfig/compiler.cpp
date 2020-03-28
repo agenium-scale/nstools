@@ -79,6 +79,12 @@ int get_type(infos_t *ci, std::string const &str) {
   } else if (str == "nvcc") {
     ci->type = compiler::infos_t::NVCC;
     return 0;
+  } else if (str == "hipcc") {
+    ci->type = compiler::infos_t::HIPCC;
+    return 0;
+  } else if (str == "hcc") {
+    ci->type = compiler::infos_t::HCC;
+    return 0;
   }
   return -1;
 }
@@ -212,16 +218,17 @@ static int get_host_nbits() {
   // function has to return 64. On Windows this is easy: it suffices to look
   // into the PROCESSOR_ARCHITECTURE environment variable. But this environment
   // variable depends on the processus. For 32-bits processus running on a
-  // 64-bits system (WOW64 process) this variable is not set to correspondond
+  // 64-bits system (WOW64 process) this variable is not set to correspond
   // to the 64-bits system. Moreover using the Win32 API to determine system
   // informations via GetNativeSystemInfo or IsWow64Process does not work
   // properly on ARM. The only Win32 API that does work properly is
   // IsWow64Process2 but it is only available on Windows 10 and later. Another
   // way is to run the native cmd.exe and echo %PROCESSOR_ARCHITECTURE%.
-  // But for WOW64 processes the system does file system redirections and
-  // %WINDIR%\system32 is in fact %WINDIR%\SysWOW64 and one has to use
-  // %WINDIR%\Sysnative. But the latter is only available for WOW64 processes.
-  // So the logic is the following:
+  // But for WOW64 processes this environment variable is set to 32 even on
+  // a 64 bits system. Moreover for WOW64 processes the system does file
+  // system redirections and %WINDIR%\system32 is in fact %WINDIR%\SysWOW64
+  // and one has to use %WINDIR%\Sysnative. But the latter is only available
+  // for WOW64 processes. So the logic is the following:
   // - If we have been compiled in 64 bits then we can only run on a 64 bits
   //   system, so we return 64
   // - Getting here means that we have been compiled in 32 bits mode in which
@@ -289,6 +296,9 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
     cmd = ci->path + " 1>" + shell::stringify(filename) + " 2>&1";
   } else if (ci->type == compiler::infos_t::NVCC) {
     cmd = ci->path + " --version 1>" + shell::stringify(filename) + " 2>&1";
+  } else if (ci->type == compiler::infos_t::HIPCC) {
+    cmd = ns2::join_path(ns2::dirname(ci->path), "hipconfig") + " 1>" +
+          shell::stringify(filename) + " 2>&1";
   } else {
     cmd = ci->path + " -v 1>" + shell::stringify(filename) + " 2>&1";
   }
@@ -308,7 +318,27 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
          line.find("icc (ICC) ") != std::string::npos) ||
         (ci->type == compiler::infos_t::NVCC &&
          line.find("release") != std::string::npos)) {
-      digits = get_version_digits(line);
+      if (ci->type == compiler::infos_t::HCC ||
+          ci->type == compiler::infos_t::HIPCC) {
+        size_t begin = 0;
+        if (ci->type == compiler::infos_t::HCC) {
+          begin = line.find("based on HCC");
+        }
+        size_t end = line.rfind(".");
+        if (begin != std::string::npos) {
+          if (end != std::string::npos) {
+            digits = get_version_digits(
+                std::string(line.begin() + begin, line.begin() + end));
+          } else {
+            digits = get_version_digits(std::string(line, begin));
+          }
+        } else {
+          digits = get_version_digits(line);
+        }
+        break;
+      } else {
+        digits = get_version_digits(line);
+      }
     }
   }
 
@@ -340,6 +370,8 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
     ci->version = get_version(digits, 3);
     break;
   case compiler::infos_t::NVCC:
+  case compiler::infos_t::HIPCC:
+  case compiler::infos_t::HCC:
     ci->version = get_version(digits, 2);
     break;
   case compiler::infos_t::None:
@@ -375,6 +407,8 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
   }
   case infos_t::GCC:
   case infos_t::Clang:
+  case infos_t::HIPCC:
+  case infos_t::HCC:
   case infos_t::ARMClang:
     while (!in.eof()) {
       std::getline(in, line);
@@ -481,6 +515,10 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "icc";
   case compiler::infos_t::NVCC:
     return "nvcc";
+  case compiler::infos_t::HIPCC:
+    return "hipcc";
+  case compiler::infos_t::HCC:
+    return "hcc";
   case compiler::infos_t::None:
     return "none";
   }

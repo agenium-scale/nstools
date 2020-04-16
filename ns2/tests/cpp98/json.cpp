@@ -78,7 +78,7 @@ int test_string(std::string const &json_src, bool correct_json, int lineno,
   } else if (!correct_json && errors.size() > 0) {
     return 0;
   } else {
-    if (jp1.lineno == lineno && jp1.col == col &&
+    if (jp1.lineno == size_t(lineno) && jp1.col == size_t(col) &&
         *jp1.str == expected_string) {
       return 0;
     } else {
@@ -114,7 +114,7 @@ int test_double(std::string const &json_src, bool correct_json, int lineno,
   } else if (!correct_json && errors.size() > 0) {
     return 0;
   } else {
-    if (jp1.lineno == lineno && jp1.col == col &&
+    if (jp1.lineno == size_t(lineno) && jp1.col == size_t(col) &&
         *jp1.dbl == expected_double) {
       return 0;
     } else {

@@ -20,6 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -176,6 +177,7 @@ int main2(int argc, char **argv) {
             << "-- OUTPUT:" << std::endl
             << output << "-- SUMMARY: " << fails.size() << " fails out of "
             << exes.size() << " tests" << std::endl;
+  std::sort(fails.begin(), fails.end());
   for (size_t i = 0; i < fails.size(); i++) {
     std::cout << "-- FAILED: " << fails[i] << std::endl;
   }

@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2019 Agenium Scale
+// Copyright (c) 2020 Agenium Scale
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -361,6 +361,13 @@ struct status_t {
   // ---
 
   std::string end_p_or_table() {
+    if (markups.size() == 0) {
+      return std::string();
+    }
+    if (markups.back() != P && markups.back() != TABLE) {
+      return std::string();
+    }
+
     error_if_inlined_not_closed();
     inside_table = 0;
 
@@ -715,6 +722,8 @@ static void close_open_indented_markups(status_t *status_,
   markups_close_open->clear();
 
   // std::cerr << "DEBUG: line = >" << line << "<" << std::endl;
+  // std::cout << "DEBUG: current markups = " << to_str(status.markups)
+  //           << std::endl;
 
   // close any header
   if (status.inside_header) {
@@ -771,9 +780,9 @@ static void close_open_indented_markups(status_t *status_,
   // empty line has an effect only when not in an INDENTED_PRE
   if (ns2::strip(line).size() == 0) {
 
-    // std::cout << "DEBUG:   empty line" << std::endl;
-    // std::cout << "DEBUG:   markups = " << to_str(status.markups) <<
-    // std::endl;
+    //std::cout << "DEBUG: empty line" << std::endl;
+    //std::cout << "DEBUG:   markups before = " << to_str(status.markups) <<
+    //              std::endl;
 
     // error check when inside tables
     if (status.last_markup_is(TABLE)) {
@@ -787,6 +796,10 @@ static void close_open_indented_markups(status_t *status_,
     *markups_close_open += status.end_p_or_table();
     status.outside_par = true;
     rest_of_the_line.clear();
+
+    //std::cout << "DEBUG:   markups after  = " << to_str(status.markups) <<
+    //              std::endl;
+
     return;
   }
 
@@ -914,7 +927,7 @@ static void close_open_indented_markups(status_t *status_,
 
   // same indentation level
   if (status.indented_markups.size() == curr_indent) {
-    // std::cout << "DEBUG:   same indentation level" << std::endl;
+    //std::cout << "DEBUG: same indentation level" << std::endl;
 
     // do we have a table row
     if (is_table_row(status, line, raw_indent)) {
@@ -930,7 +943,9 @@ static void close_open_indented_markups(status_t *status_,
 
     // start a new unordered list
     if (is_ul_beginning(line, raw_indent)) {
-      // std::cout << "DEBUG:   new unordered list" << std::endl;
+      //std::cout << "DEBUG: new unordered list" << std::endl;
+      //std::cout << "DEBUG:   markups before = " << to_str(status.markups) <<
+      //           std::endl;
       *markups_close_open += status.end_p_or_table();
       *markups_close_open += status.begin_markup(UL);
       *markups_close_open += status.begin_markup(LI);
@@ -938,6 +953,8 @@ static void close_open_indented_markups(status_t *status_,
       rest_of_the_line = line.substr(raw_indent + 2);
       status.currpos += raw_indent + 2;
       inside_p_prepend_nl(&status, &rest_of_the_line);
+      //std::cout << "DEBUG:   markups after  = " << to_str(status.markups) <<
+      //             std::endl;
       // std::cout << "DEBUG:     first_line_of_p = " << status.first_line_of_p
       //           << std::endl;
       return;

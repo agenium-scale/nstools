@@ -53,10 +53,11 @@ namespace ns2 {
 // ----------------------------------------------------------------------------
 
 NS_DLLSPEC const char *backtrace() {
-  void *pointers[BACKTRACE_SIZE];
-  static NS2_TLS char ret[BACKTRACE_SIZE * MAX_SYMBOL_LEN];
 
 #if defined(__GLIBC__) && !defined(_MSC_VER)
+
+  void *pointers[BACKTRACE_SIZE];
+  static NS2_TLS char ret[BACKTRACE_SIZE * MAX_SYMBOL_LEN];
 
   // get stacktrace addresses
   int n = ::backtrace((void **)&pointers, BACKTRACE_SIZE);
@@ -83,6 +84,9 @@ NS_DLLSPEC const char *backtrace() {
   return ret;
 
 #elif defined(_MSC_VER) && defined(_M_AMD64)
+
+  void *pointers[BACKTRACE_SIZE];
+  static NS2_TLS char ret[BACKTRACE_SIZE * MAX_SYMBOL_LEN];
 
   // get backtrace addresses
   int n = CaptureStackBackTrace(0, BACKTRACE_SIZE, (void **)&pointers, NULL);

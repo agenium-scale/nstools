@@ -153,7 +153,7 @@ private:
 
 template <typename Output, typename Work>
 inline void pool_work(std::vector<Output> *output, Output (*func)(Work *),
-                      int nb_threads, Work *work) {
+                      size_t nb_threads, Work *work) {
 
 #ifdef NS2_IS_MSVC
   std::vector<HANDLE> threads(nb_threads);
@@ -165,7 +165,7 @@ inline void pool_work(std::vector<Output> *output, Output (*func)(Work *),
   typedef typename st_t::param_t param_t;
   std::vector<param_t> params(nb_threads);
   output->resize(nb_threads);
-  for (int i = 0; i < nb_threads; i++) {
+  for (size_t i = 0; i < nb_threads; i++) {
     params[i].output = &(output->operator[](i));
     params[i].work = work;
     params[i].func = func;
@@ -185,7 +185,7 @@ inline void pool_work(std::vector<Output> *output, Output (*func)(Work *),
 #endif
   }
 
-  for (int i = 0; i < nb_threads; i++) {
+  for (size_t i = 0; i < nb_threads; i++) {
 #ifdef NS2_IS_MSVC
     if (WaitForSingleObject(threads[i], INFINITE) == WAIT_FAILED) {
       NS2_THROW(std::runtime_error, "cannot wait for thread");

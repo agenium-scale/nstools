@@ -91,7 +91,7 @@ int main2(int argc, char **argv) {
   std::vector<std::string> globbed, exes;
   std::string suffix, prefix;
   int i0 = 1;
-  int nb_threads = 1;
+  size_t nb_threads = 1;
   quiet = false;
 
   // Parse arguments
@@ -114,7 +114,7 @@ int main2(int argc, char **argv) {
       continue;
     }
     if (!memcmp(argv[i0], "-j", 2)) {
-      nb_threads = atoi(argv[i0] + 2);
+      nb_threads = size_t(atoi(argv[i0] + 2));
       continue;
     }
     if (!strcmp(argv[i0], "--")) {

@@ -380,8 +380,8 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
 
   // parse the then part
   ret += translate(
-      std::vector<parser::token_t>(tokens.begin() + 5, tokens.begin() + i),
-      &pi);
+      std::vector<parser::token_t>(tokens.begin() + 5,
+                                   tokens.begin() + long(i)), &pi);
 
   // is there an 'else' part or not?
   if (i >= tokens.size() - 1) {
@@ -419,8 +419,8 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
   }
 
   // parse the else part
-  ret += translate(std::vector<parser::token_t>(tokens.begin() + i0_else,
-                                                tokens.begin() + i),
+  ret += translate(std::vector<parser::token_t>(tokens.begin() + long(i0_else),
+                                                tokens.begin() + long(i)),
                    &pi);
 
 #ifdef NS2_IS_MSVC
@@ -461,6 +461,9 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 }
 
 // ----------------------------------------------------------------------------
+// On BSDs (and therefore on MacOS) the syntax for rpath is of course different
+// from Linux. More precisely GNU ld (found on most Linux) uses "-rpath=dir"
+// while BSD ld uses "-path dir".
 
 static std::string get_rpath_argument(std::string const &directory,
                                       compiler::infos_t const &ci) {
@@ -474,11 +477,23 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::ICC:
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
+#if defined(NS2_IS_BSD) || defined(NS2_IS_MACOS)
+    if (directory == ".") {
+      return "-rpath,$ORIGIN";
+    } else if (directory[0] == '.' && directory[1] == '/') {
+      return "-rpath,$ORIGIN" + directory.substr(2);
+    } else {
+      return "-rpath," + directory;
+    }
+#else
     if (directory == ".") {
       return "-rpath=$ORIGIN";
+    } else if (directory[0] == '.' && directory[1] == '/') {
+      return "-rpath=$ORIGIN" + directory.substr(2);
     } else {
-      return "-rpath=" + directory;
+      return "\"-rpath=" + directory;
     }
+#endif
   case compiler::infos_t::MSVC:
     return std::string();
   }
@@ -1267,9 +1282,8 @@ std::string translate(std::vector<parser::token_t> const &tokens,
         ;
 
       // translate previous command
-      ret += single_command(std::vector<parser::token_t>(tokens.begin() + i0,
-                                                         tokens.begin() + i1),
-                            &pi);
+      ret += single_command(std::vector<parser::token_t>(
+                 tokens.begin() + long(i0), tokens.begin() + long(i1)), &pi);
 
       if (i1 >= tokens.size()) {
         break;

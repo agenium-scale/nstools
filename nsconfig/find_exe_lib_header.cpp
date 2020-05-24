@@ -63,8 +63,10 @@ std::string lib_basename(std::string const &str) {
     i1 -= 4;
   } else if (ns2::endswith(temp, ".dll")) {
     i1 -= 4;
+  } else if (ns2::endswith(temp, ".dylib")) {
+    i1 -= 6;
   }
-  return std::string(str.begin() + i0, str.begin() + i1);
+  return std::string(str.begin() + long(i0), str.begin() + long(i1));
 }
 
 // ----------------------------------------------------------------------------
@@ -78,6 +80,9 @@ void find_exe(parser::variables_t *variables, std::string const &var,
   std::vector<std::string> exe(1, prog_name + ".exe");
 #else
   std::vector<std::string> exe(1, prog_name);
+#ifdef NS2_IS_MACOS
+  exe.push_back(prog_name + ".app");
+#endif
 #endif
   ns2::dir_file_t df = ns2::find(paths, exe, env, 1, true);
   if (ns2::found(df)) {
@@ -162,12 +167,18 @@ void find_lib(parser::variables_t *variables, rule_desc_t *rd,
   switch (libtype) {
   case Dynamic:
     binaries.push_back("lib" + lib_name + ".so");
+#ifdef NS2_IS_MACOS
+    binaries.push_back("lib" + lib_name + ".dylib");
+#endif
     break;
   case Static:
     binaries.push_back("lib" + lib_name + ".a");
     break;
   case Automatic:
     binaries.push_back("lib" + lib_name + ".so");
+#ifdef NS2_IS_MACOS
+    binaries.push_back("lib" + lib_name + ".dylib");
+#endif
     binaries.push_back("lib" + lib_name + ".a");
     break;
   }

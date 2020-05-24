@@ -328,7 +328,8 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
         if (begin != std::string::npos) {
           if (end != std::string::npos) {
             digits = get_version_digits(
-                std::string(line.begin() + begin, line.begin() + end));
+                std::string(line.begin() + long(begin),
+                            line.begin() + long(end)));
           } else {
             digits = get_version_digits(std::string(line, begin));
           }

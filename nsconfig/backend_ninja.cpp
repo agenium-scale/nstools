@@ -69,11 +69,16 @@ static size_t shell_cmd_max_len() {
   // Windows XP and later. As we do not support earlier Windows system we
   // keep 8191 as limitation.
   return size_t(8191) - size_t(1);
+#elif defined(NS2_IS_MACOS) || defined(NS2_IS_BSD)
+  // On BSDs and MacOS it is simple, there is a syscall that does exactly
+  // what we want.
+  return size_t(sysconf(_SC_ARG_MAX));
 #else
-  // On NIXes, the situation is no better. Ninja calls posix_spawn(3) which
-  // in turn calls execve(2). A read at execve(2) seems to indicate that the
-  // lower limit is = 32 * (size of a memory page) in any case except two
-  // versions of the Linux kernel: 2.6.23 and 2.6.24 which we ignore.
+  // On Linux, the situation is no better than Windows. Ninja calls
+  // posix_spawn(3) which in turn calls execve(2). A read at execve(2) seems
+  // to indicate that the lower limit is = 32 * (size of a memory page) in any
+  // case except two versions of the Linux kernel: 2.6.23 and 2.6.24 which we
+  // ignore.
   return size_t(32) * sysconf(_SC_PAGESIZE) - size_t(1);
 #endif
 }

@@ -232,8 +232,8 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
           cur.col = int(i + 1);
           die("cannot find closing '}'", cur);
         }
-        key = substitute(std::string(str.begin() + i0, str.begin() + i1), cur,
-                         &variables);
+        key = substitute(std::string(str.begin() + long(i0),
+                                     str.begin() + long(i1)), cur, &variables);
 
         // case of '$...$', we take what's inside as the variable name and
         // return its value
@@ -243,7 +243,7 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
              i1 < str.size() && str[i1] != '$' && !ns2::is_blank(str[i1]);
              i1++)
           ;
-        key = std::string(str.begin() + i0, str.begin() + i1);
+        key = std::string(str.begin() + long(i0), str.begin() + long(i1));
       }
 
       variables_t::iterator it = variables.find(key);
@@ -455,8 +455,10 @@ inline std::string get_ext(compiler::infos_t::type_t type,
     } else if (which == "@static_lib_ext") {
       return ".a";
     } else if (which == "@shared_lib_ext") {
-#ifdef NS2_IS_MSVC
+#if defined(NS2_IS_MSVC)
       return ".dll";
+#elif defined(NS2_IS_MACOS)
+      return ".dylib";
 #else
       return ".so";
 #endif
@@ -467,7 +469,7 @@ inline std::string get_ext(compiler::infos_t::type_t type,
       return ".so";
 #endif
     } else {
-#ifdef NS2_IS_MSVC
+#if defined(NS2_IS_MSVC)
       return ".exe";
 #else
       return "";
@@ -706,7 +708,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       }
       std::string const &key = tokens[i0 - 1].text;
       std::string value(
-          ns2::join(tokens.begin() + (i0 + 1), tokens.end(), " "));
+          ns2::join(tokens.begin() + long(i0 + 1), tokens.end(), " "));
 
       // handle special requests
       if (value[0] == '@') {
@@ -989,8 +991,8 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
           for (size_t k = 0; k < temp.size(); k++) {
             std::string out = build_files_format(
                 format,
-                ns2::replace(std::string(temp[k].begin() + i0, temp[k].end()),
-                             '/', '.'));
+                ns2::replace(std::string(temp[k].begin() + long(i0),
+                             temp[k].end()), '/', '.'));
             rule_desc.out_ins.push_back(
                 std::pair<std::string, std::string>(out, temp[k]));
           }
@@ -1396,7 +1398,7 @@ void die(std::string const &msg, cursor_t const &cursor) {
       std::cerr << "... ";
     }
     std::cerr << std::endl
-              << std::string(col, ' ') << "^~~~~ " << msg << std::endl
+              << std::string(size_t(col), ' ') << "^~~~~ " << msg << std::endl
               << std::endl;
   } else {
     std::cerr << "nsconfig: error: " << cursor.filename << ":" << cursor.lineno

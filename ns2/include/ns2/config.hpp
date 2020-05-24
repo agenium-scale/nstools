@@ -28,22 +28,34 @@
 
 namespace ns2 {
 
-// Compilers
+// Compiler detection (order matters https://stackoverflow.com/a/28166605)
 // ----------------------------------------------------------------------------
 
-// GCC
-#if defined(__GNUC__)
-#define NS2_IS_GCC
-#endif
-
-// Clang
-#if defined(__CLANG__)
-#define NS2_IS_CLANG
-#endif
-
-// Microsoft Visual Studio
 #if defined(_MSC_VER)
-#define NS2_IS_MSVC
+#define N2_IS_MSVC
+#elif defined(__INTEL_COMPILER)
+#define N2_IS_ICC
+#elif defined(__clang__)
+#define N2_IS_CLANG
+#elif defined(__GNUC__) || defined(__GNUG__)
+#define N2_IS_GCC
+#elif defined(__NVCC__)
+#define N2_IS_NVCC
+#endif
+
+// We do not provide a sophisticated way to detect the OS as most of our code
+// only needs to distinguish between Windows and Linux. We do that by means
+// of the NS2_IS_MSVC macro because we only support MSVC on Windows, not mingw,
+// not clang. In rare cases do we need to know whether a Unix is in fact a BSD
+// or a MAC therefore the below macros are more than sufficient.
+
+#if defined(__APPLE__) || defined(__MACH__)
+#define NS2_IS_MACOS
+#endif
+
+#if defined(__FreeBSD__) || defined(__NETBSD__) || defined(__NetBSD__) ||     \
+    defined(__OpenBSD__) || defined(__DragonFly__) || defined(__bsdi__)
+#define NS2_IS_BSD
 #endif
 
 // Dll specs

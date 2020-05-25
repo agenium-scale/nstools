@@ -93,8 +93,8 @@ it did fit our needs. After having considered other build systems our choice
 was made to write yet another one that suits our needs. This build system may
 or may not be the right one for you. It was not written to replace CMake or the
 autotools worldwide. It was written for our needs only. As no dedicated pages
-for the documentation is ready for nstools and for nsconfig, what follows is
-the docoumentation of nsconfig.
+for the documentation is ready for nstools and for nsconfig, what follows is the
+documentation of nsconfig.
 
 ## Overview
 

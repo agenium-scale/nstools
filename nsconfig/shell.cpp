@@ -491,7 +491,7 @@ static std::string get_rpath_argument(std::string const &directory,
     } else if (directory[0] == '.' && directory[1] == '/') {
       return "-rpath=$ORIGIN" + directory.substr(2);
     } else {
-      return "\"-rpath=" + directory;
+      return "-rpath=" + directory;
     }
 #endif
   case compiler::infos_t::MSVC:

@@ -32,15 +32,15 @@ namespace ns2 {
 // ----------------------------------------------------------------------------
 
 #if defined(_MSC_VER)
-#define N2_IS_MSVC
+#define NS2_IS_MSVC
 #elif defined(__INTEL_COMPILER)
-#define N2_IS_ICC
+#define NS2_IS_ICC
 #elif defined(__clang__)
-#define N2_IS_CLANG
+#define NS2_IS_CLANG
 #elif defined(__GNUC__) || defined(__GNUG__)
-#define N2_IS_GCC
+#define NS2_IS_GCC
 #elif defined(__NVCC__)
-#define N2_IS_NVCC
+#define NS2_IS_NVCC
 #endif
 
 // We do not provide a sophisticated way to detect the OS as most of our code

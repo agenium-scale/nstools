@@ -66,6 +66,10 @@ std::string get_correpsonding_cpp_comp(std::string const &);
 
 // ----------------------------------------------------------------------------
 
+#define COMPILER_INFOS_DIR "_compiler_infos"
+
+// ----------------------------------------------------------------------------
+
 } // namespace compiler
 
 #endif

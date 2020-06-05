@@ -20,16 +20,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-build_file a.out deps a.cpp
-	hcc -Wall -La/b -lb a.cpp -o a.out
+#build_file a.out deps a.cpp
+#	hcc -Wall -La/b -lb a.cpp -o a.out
 
-#set o         = @obj_ext
-#set lib       = @shared_link_ext
-#set exe       = @exe_ext
-#set so        = @shared_lib_ext
-#set build_dir = @build_dir
-#set asm       = @asm_ext
-#set prefix    = @prefix
+set o         = @obj_ext
+set lib       = @shared_link_ext
+set exe       = @exe_ext
+set so        = @shared_lib_ext
+set build_dir = @build_dir
+set asm       = @asm_ext
+set prefix    = @prefix
 #
 #set ccomp_suite   = @ccomp_suite
 #set ccomp_path    = @ccomp_path

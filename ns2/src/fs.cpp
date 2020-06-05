@@ -423,6 +423,15 @@ std::string read_file(std::string const &path) {
 
 // ----------------------------------------------------------------------------
 
+NS_DLLSPEC void write_file(std::string const &path,
+                           std::string const &content) {
+  ns2::ofile_t out(path);
+  out << content;
+  out.close();
+}
+
+// ----------------------------------------------------------------------------
+
 bool exists(std::string const &path) {
 #ifdef NS2_IS_MSVC
   return _access(sanitize(path).c_str(), 0) == 0;
@@ -848,6 +857,8 @@ void mkdir(std::string const &path) {
 #else
 #define MKDIR(path) ::mkdir(path, 0700)
 #endif
+  if (startswith(path, "//?/")) {
+  }
   std::vector<std::string> pieces(split(path, '/'));
   std::string curr_dir;
   for (size_t i = 0; i < pieces.size(); i++) {

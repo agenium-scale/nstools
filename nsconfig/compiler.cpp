@@ -91,36 +91,6 @@ int get_type(infos_t *ci, std::string const &str) {
 
 // ----------------------------------------------------------------------------
 
-static bool is_version_number(std::string const &str) {
-  if (str.size() == 0) {
-    return false;
-  }
-  for (size_t i = 0; i < str.size(); i++) {
-    if (str[i] == '.' || (str[i] >= '0' && str[i] <= '9')) {
-      continue;
-    }
-    return false;
-  }
-  return true;
-}
-
-// ----------------------------------------------------------------------------
-
-static std::vector<std::string> get_version_digits(std::string const &str) {
-  std::vector<std::string> words = ns2::split(
-      ns2::replace(ns2::replace(ns2::replace(str, 'V', ' '), '+', ' '), '-',
-                   ' '),
-      ' ');
-  for (size_t i = 0; i < words.size(); i++) {
-    if (is_version_number(words[i])) {
-      return ns2::split(words[i], '.');
-    }
-  }
-  return std::vector<std::string>();
-}
-
-// ----------------------------------------------------------------------------
-
 static bool can_exec(std::string const &str) {
 #ifdef NS2_IS_MSVC
   std::string buf(str + " 1>nul 2>nul");
@@ -210,6 +180,7 @@ lbl_error_compiler:
 
 // ----------------------------------------------------------------------------
 
+/* For later use
 static int get_host_nbits() {
 #ifdef _MSC_VER
   // Returns 32 or 64 depending on the machine where nsconfig is running.
@@ -259,192 +230,158 @@ static int get_host_nbits() {
   }
 #endif
 }
+*/
 
 // ----------------------------------------------------------------------------
 
-static int get_version(std::vector<std::string> const &digits,
-                       int nb_significant_digits) {
-  int ret = 0;
-  int power = 1;
-  for (size_t i = size_t(nb_significant_digits) - 1; i != 0; i--) {
-    if (i < digits.size()) {
-      int d = ::atoi(digits[i].c_str());
-      ret += (d > 9 ? 9 : d) * power;
-    }
-    power *= 10;
+static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
+                                             std::string const &prefix,
+                                             std::string const &src) {
+
+  // Compute file extension and proper include file
+  std::string extension, include_stdio;
+  if (ci.type == compiler::infos_t::NVCC) {
+    extension = ".cu";
+    include_stdio = "cstdio";
+  } else if (ci.lang == compiler::infos_t::C) {
+    extension = ".c";
+    include_stdio = "stdio.h";
+  } else {
+    extension = ".cpp";
+    include_stdio = "cstdio";
   }
-  return ret + power * ::atoi(digits[0].c_str());
+
+  // Dump code for computing version
+  std::string src_filename(prefix + extension);
+  ns2::write_file(src_filename, "#include <" + include_stdio +
+                                    ">\n"
+                                    "int main() {\n" +
+                                    src + "\nfflush(stdout); return 0; }");
+
+  // Try and compile the code
+  std::string aout_filename(prefix + extension + ".exe");
+  std::string cmdline;
+  if (ci.type == compiler::infos_t::MSVC) {
+    cmdline = ci.path + " " + src_filename + " /Fe\"" + aout_filename +
+              "\" 1>nul 2>nul";
+  } else {
+    cmdline = ci.path + " " + src_filename + " -o \"" + aout_filename +
+              "\" 1>/dev/null 2>/dev/null";
+  }
+  if (std::system(cmdline.c_str()) != 0) {
+    return std::pair<std::string, int>(std::string(), 1);
+  }
+
+  // Execute binary and finally get output
+  std::pair<std::string, int> ret = ns2::popen(aout_filename);
+  return std::pair<std::string, int>(ret.first, (ret.second ? 2 : 0));
 }
 
 // ----------------------------------------------------------------------------
 
-static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
+static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
-  // variables must be declared here because of all the goto's
-  ns2::ifile_t in;
-  std::vector<std::string> digits;
-  std::string line;
-  infos_t host_ci;
+  compiler::infos_t &ci = *ci_;
 
-  // filename that will receive compiler infos
-  std::string filename(ns2::sanitize(
-      pi.build_dir + "/" + ns2::replace(ci->path, '/', '.') + "-version.txt"));
-
-  // craft command line for filling filename and execute
-  std::string cmd;
-  if (ci->type == compiler::infos_t::MSVC) {
-    cmd = ci->path + " 1>" + shell::stringify(filename) + " 2>&1";
-  } else if (ci->type == compiler::infos_t::NVCC) {
-    cmd = ci->path + " --version 1>" + shell::stringify(filename) + " 2>&1";
-  } else if (ci->type == compiler::infos_t::HIPCC) {
-    cmd = ns2::join_path(ns2::dirname(ci->path), "hipconfig") + " 1>" +
-          shell::stringify(filename) + " 2>&1";
-  } else {
-    cmd = ci->path + " -v 1>" + shell::stringify(filename) + " 2>&1";
-  }
-  if (system(cmd.c_str()) != 0) {
-    OUTPUT << "Command \"" << cmd << "\" fails" << std::endl;
-    goto lbl_error_version;
-  }
-
-  // determine compiler version
-
-  // search for the line that begins with "version" or "Version"
-  in.open(filename);
-  while (std::getline(in, line)) {
-    if (line.find("version") != std::string::npos ||
-        line.find("Version") != std::string::npos ||
-        (ci->type == compiler::infos_t::ICC &&
-         line.find("icc (ICC) ") != std::string::npos) ||
-        (ci->type == compiler::infos_t::NVCC &&
-         line.find("release") != std::string::npos)) {
-      if (ci->type == compiler::infos_t::HCC ||
-          ci->type == compiler::infos_t::HIPCC) {
-        size_t begin = 0;
-        if (ci->type == compiler::infos_t::HCC) {
-          begin = line.find("based on HCC");
-        }
-        size_t end = line.rfind(".");
-        if (begin != std::string::npos) {
-          if (end != std::string::npos) {
-            digits = get_version_digits(
-                std::string(line.begin() + long(begin),
-                            line.begin() + long(end)));
-          } else {
-            digits = get_version_digits(std::string(line, begin));
-          }
-        } else {
-          digits = get_version_digits(line);
-        }
-        break;
-      } else {
-        digits = get_version_digits(line);
-      }
-    }
-  }
-
-  // compute compiler version
-  switch (ci->type) {
+  // Getting the version of the compiler is easy. We compile and run a piece
+  // of code that computes the version. Thanks to sjubertie for the idea. It
+  // avoids the mess of parsing the compiler banner/version which compiler,
+  // compiler version, system locale or not,.. dependant...
+  std::string version_formula;
+  switch (ci.type) {
   case compiler::infos_t::GCC:
-    if (digits.size() < 2) {
-      goto lbl_error_version;
-    }
-    ci->version = get_version(digits, 4);
+    version_formula = "(long)(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + "
+                      "__GNUC_PATCHLEVEL__)";
     break;
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
-    if (digits.size() < 2) {
-      goto lbl_error_version;
-    }
-    ci->version = get_version(digits, 3);
+    version_formula = "(long)(__clang_major__ * 10000 + __clang_minor__ * 100 "
+                      "+ __clang_patchlevel__)";
     break;
   case compiler::infos_t::MSVC:
-    if (digits.size() < 2) {
-      goto lbl_error_version;
-    }
-    ci->version = ::atoi(digits[0].c_str()) * 100 + ::atoi(digits[1].c_str());
+    version_formula = "(long)(_MSC_VER)";
     break;
   case compiler::infos_t::ICC:
-    if (digits.size() < 2) {
-      goto lbl_error_version;
-    }
-    ci->version = get_version(digits, 3);
+    version_formula = "(long)(__INTEL_COMPILER)";
     break;
   case compiler::infos_t::NVCC:
+    version_formula = "(long)(__CUDACC_VER_MAJOR__ * 10000 + "
+                      "__CUDACC_VER_MINOR__ * 100 + "
+                      "__CUDACC_VER_BUILD__)";
+    break;
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
-    ci->version = get_version(digits, 2);
+    version_formula = "(long)(__hcc_major__ * 10000 + __hcc_minor__ * 100)";
     break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;
   }
 
-  // compute compiler target architecture
-  in.clear();
-  in.seekg(0);
-  ci->nbits = 0;
-  switch (ci->type) {
-  case infos_t::MSVC: {
-    std::getline(in, line);
-    std::vector<std::string> words(ns2::split(line, ' '));
-    std::string archi(ns2::strip(words.back())); // remove trailing \r on WIN
-    if (archi == "x64") {
-      ci->arch = infos_t::Intel;
-      ci->nbits = 64;
-    } else if (archi == "x86") {
-      ci->arch = infos_t::Intel;
-      ci->nbits = 32;
-    } else if (archi == "ARM") {
-      ci->arch = infos_t::ARM;
-      ci->nbits = 32;
-    } else if (archi == "ARM64") {
-      ci->arch = infos_t::ARM;
-      ci->nbits = 64;
-    } else {
-      goto lbl_error_march;
-    }
-    break;
+  // First of, create directory for all this mess
+  ns2::mkdir(COMPILER_INFOS_DIR);
+
+  // Get compiler version
+  std::pair<std::string, int> code =
+      popen_src(ci, ns2::join_path(COMPILER_INFOS_DIR, "version"),
+                "printf(\"%li\", " + version_formula + ");");
+  if (code.second) {
+    OUTPUT << "Cannot find compiler version";
+    exit(EXIT_FAILURE);
   }
-  case infos_t::GCC:
-  case infos_t::Clang:
-  case infos_t::HIPCC:
-  case infos_t::HCC:
-  case infos_t::ARMClang:
-    while (!in.eof()) {
-      std::getline(in, line);
-      if (ns2::startswith(line, "Target:") ||
-          ns2::startswith(line, "Cible :")) {
-        if (line.find("aarch64") != std::string::npos) {
-          ci->arch = infos_t::ARM;
-          ci->nbits = 64;
-        } else if (line.find("arm") != std::string::npos) {
-          ci->arch = infos_t::ARM;
-          ci->nbits = 32;
-        } else if (line.find("x86_64") != std::string::npos) {
-          ci->arch = infos_t::Intel;
-          ci->nbits = 64;
-        } else {
-          ci->arch = infos_t::Intel;
-          ci->nbits = 32;
-        }
-      }
-    }
-    if (ci->nbits == 0) {
-      goto lbl_error_march;
-    }
-    break;
-  case infos_t::ICC:
-    ci->arch = infos_t::Intel;
-    ci->nbits = get_host_nbits(); // For ICC default is like host
-    break;
-  case infos_t::NVCC:
+  ci.version = atoi(code.first.c_str());
+
+  // Get compiler target architecture
+  switch(ci.type) {
+  case infos_t::NVCC: {
     // For NVCC it depends on the host compiler and by default the
     // host compiler we choose for nvcc is c++, the one that can be given at
     // nsconfig command line.
-    host_ci = get("c++", &pi);
-    ci->arch = host_ci.arch;
-    ci->nbits = host_ci.nbits;
+    compiler::infos_t host_ci = get("c++", &pi);
+    ci.arch = host_ci.arch;
+    ci.nbits = host_ci.nbits;
+    break;
+  }
+  case infos_t::Clang:
+  case infos_t::ARMClang:
+  case infos_t::GCC:
+  case infos_t::MSVC:
+  case infos_t::HCC:
+  case infos_t::ICC:
+  case infos_t::HIPCC:
+    code = popen_src(
+        ci, ns2::join_path(COMPILER_INFOS_DIR, "target"),
+        "#if defined(__ARM_ARCH) || defined(_M_ARM) || defined(__arm__)\n"
+        "printf(\"arm\");\n"
+        "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "
+        "|| "
+        "defined(__AARCH64EL__)\n"
+        "printf(\"aarch64\");\n"
+        "#elif defined(_M_IX86) || defined(_X86_) || defined(__INTEL__) || "
+        "defined(__I86__) || defined(__i386__) || defined(__i486__) ||"
+        "defined(__i586__) || defined(__i686__)\n"
+        "printf(\"x86\");\n"
+        "#elif defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) "
+        "|| defined(__amd64) || defined(_M_X64)\n"
+        "printf(\"x86_64\");\n"
+        "#endif");
+    if (code.second) {
+      OUTPUT << "Cannot find compiler target";
+      exit(EXIT_FAILURE);
+    }
+    if (code.first == "arm") {
+      ci.arch = compiler::infos_t::ARM;
+      ci.nbits = 32;
+    } else if (code.first == "aarch64") {
+      ci.arch = compiler::infos_t::ARM;
+      ci.nbits = 64;
+    } else if (code.first == "x86") {
+      ci.arch = compiler::infos_t::Intel;
+      ci.nbits = 32;
+    } else if (code.first == "x86_64") {
+      ci.arch = compiler::infos_t::Intel;
+      ci.nbits = 64;
+    }
     break;
   case infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
@@ -452,21 +389,9 @@ static void set_version_arch(infos_t *ci, parser::infos_t *pi_) {
   }
 
   if (pi.verbosity >= VERBOSITY_NORMAL) {
-    OUTPUT << "Compiler: " << *ci << std::endl;
+    OUTPUT << "Compiler: " << ci << std::endl;
   }
   return;
-
-lbl_error_march:
-  if (pi.verbosity >= VERBOSITY_NORMAL) {
-    OUTPUT << "Cannot determine compiler target architecture" << std::endl;
-  }
-  exit(EXIT_FAILURE);
-
-lbl_error_version:
-  if (pi.verbosity >= VERBOSITY_NORMAL) {
-    OUTPUT << "Cannot determine compiler version" << std::endl;
-  }
-  exit(EXIT_FAILURE);
 }
 
 // ----------------------------------------------------------------------------

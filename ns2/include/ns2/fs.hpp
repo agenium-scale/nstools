@@ -141,6 +141,8 @@ public:
 
 NS_DLLSPEC std::string read_file(std::string const &);
 
+NS_DLLSPEC void write_file(std::string const &, std::string const &);
+
 NS_DLLSPEC std::string sanitize(std::string const &);
 
 NS_DLLSPEC bool isdir(std::string const &);

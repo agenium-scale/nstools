@@ -259,7 +259,7 @@ static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
                                     src + "\nfflush(stdout); return 0; }");
 
   // Try and compile the code
-  std::string aout_filename(prefix + extension + ".exe");
+  std::string aout_filename(ns2::sanitize(prefix + extension + ".exe"));
   std::string cmdline;
   if (ci.type == compiler::infos_t::MSVC) {
     cmdline = ci.path + " " + src_filename + " /Fe\"" + aout_filename +

@@ -41,6 +41,13 @@ all:
 	       /Fensconfig.exe
 	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp $(LD_FLAGS) /Fenstest.exe
 
+nsconfig.exe: ..\.git\logs\HEAD
+	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) $(LD_FLAGS) \
+	       /Fensconfig.exe
+
+nstest.exe: ..\.git\logs\HEAD
+	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp $(LD_FLAGS) /Fenstest.exe
+
 install:
 	if not exist %USERPROFILE%\bin md %USERPROFILE%\bin
 	copy /Y nsconfig.exe %USERPROFILE%\bin

@@ -28,7 +28,8 @@
 
 namespace backend {
 
-void ninja(rules_t const &, std::string const &, std::string const &);
+void ninja(rules_t const &, std::string const &, std::string const &,
+           std::string const &);
 
 } // namespace backend
 

@@ -22,11 +22,13 @@
 
 #include "backend_ninja.hpp"
 #include "nsconfig.hpp"
+#include "compiler.hpp"
 #include "shell.hpp"
 #include <ctime>
 #include <iostream>
 #include <ns2/fs.hpp>
 #include <ns2/string.hpp>
+#include <ns2/process.hpp>
 #ifndef NS2_IS_MSVC
 #include <unistd.h>
 #else
@@ -72,7 +74,7 @@ static size_t shell_cmd_max_len() {
 #elif defined(NS2_IS_MACOS) || defined(NS2_IS_BSD)
   // On BSDs and MacOS it is simple, there is a syscall that does exactly
   // what we want.
-  return size_t(sysconf(_SC_ARG_MAX));
+  return size_t(sysconf(_SC_ARG_MAX)) - size_t(1);
 #else
   // On Linux, the situation is no better than Windows. Ninja calls
   // posix_spawn(3) which in turn calls execve(2). A read at execve(2) seems
@@ -198,8 +200,43 @@ static void ninja_output_rule(rule_desc_t const &rule_desc,
 
 // ----------------------------------------------------------------------------
 
+static std::string get_msvc_deps_prefix(std::string const &path) {
+  ns2::mkdir(COMPILER_INFOS_DIR);
+  std::string header("4294967291.hpp");
+  std::string src("msvc_deps_prefix.cpp");
+  ns2::write_file(ns2::join_path(COMPILER_INFOS_DIR, header), "#define FOO\n");
+  ns2::write_file(ns2::join_path(COMPILER_INFOS_DIR, src),
+                  "#include \"" + header + "\"\nint main() {return 0;}");
+  std::pair<std::string, int> code = ns2::popen(std::string("cd \"") +
+                                                COMPILER_INFOS_DIR +
+                                                "\" & " + path +
+                                                " /nologo /showIncludes " +
+                                                src);
+  if (code.second == 0) {
+    std::vector<std::string> lines = ns2::split(code.first, '\n');
+    for (size_t i = 0; i < lines.size(); i++) {
+      if (lines[i].find(header) != std::string::npos) {
+        size_t sep = lines[i].find(':');
+        if (sep == std::string::npos) {
+          break;
+        }
+        sep = lines[i].find(':', sep + 1);
+        if (sep == std::string::npos) {
+          break;
+        }
+        return std::string(lines[i], 0, sep + 1);
+      }
+    }
+  }
+  OUTPUT << "Cannot get MSVC prefix when /showIncludes" << std::endl;
+  exit(EXIT_FAILURE);
+  return std::string(); // Should never be reached
+}
+
+// ----------------------------------------------------------------------------
+
 void ninja(rules_t const &rules, std::string const &ninja_file,
-           std::string const &cmdline) {
+           std::string const &cmdline, std::string const &msvc_path) {
   ns2::ofile_t out(ninja_file);
   char buf[256];
   time_t now = time(NULL);
@@ -209,8 +246,9 @@ void ninja(rules_t const &rules, std::string const &ninja_file,
       << "# Command line: " << cmdline << "\n"
       << "#\n\n";
 
-  // We do support only English MSVCs for now
-  out << "msvc_deps_prefix = Note: including file:\n\n";
+  if (msvc_path.size() > 0) {
+    out << "msvc_deps_prefix = " << get_msvc_deps_prefix(msvc_path) << "\n\n";
+  }
 
   // Default rule has to be specified for ninja
   rule_desc_t const *rd = rules.find_by_target("all");

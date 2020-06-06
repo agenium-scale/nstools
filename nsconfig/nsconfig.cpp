@@ -271,7 +271,15 @@ int main2(int argc, char **argv) {
     pi.backend_supports_self_generation = true;
     pi.backend_supports_header_deps = true;
     rules_t rules = parser::parse(in, &pi);
-    backend::ninja(rules, temp, cmdline);
+    std::string msvc_path;
+    for (compiler::list_t::const_iterator it = pi.compilers.begin();
+         it != pi.compilers.end(); ++it) {
+      if ((it->second).type == compiler::infos_t::MSVC) {
+        msvc_path = (it->second).path;
+        break;
+      }
+    }
+    backend::ninja(rules, temp, cmdline, msvc_path);
 
   } else if (!strcmp(generator, "list-vars")) {
 

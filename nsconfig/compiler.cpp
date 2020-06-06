@@ -235,6 +235,7 @@ static int get_host_nbits() {
 // ----------------------------------------------------------------------------
 
 static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
+                                             std::string const &dirname,
                                              std::string const &prefix,
                                              std::string const &src) {
 
@@ -253,27 +254,27 @@ static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
 
   // Dump code for computing version
   std::string src_filename(prefix + extension);
-  ns2::write_file(src_filename, "#include <" + include_stdio +
-                                    ">\n"
-                                    "int main() {\n" +
-                                    src + "\nfflush(stdout); return 0; }");
+  ns2::write_file(ns2::join_path(dirname, src_filename),
+                  "#include <" + include_stdio + ">\nint main() {\n" +
+                  src + "\nfflush(stdout); return 0; }");
 
   // Try and compile the code
-  std::string aout_filename(ns2::sanitize(prefix + extension + ".exe"));
-  std::string cmdline;
+  std::string aout_filename(prefix + extension + ".exe");
+  std::string cmdline("cd \"" + ns2::sanitize(dirname) + "\" && ");
   if (ci.type == compiler::infos_t::MSVC) {
-    cmdline = ci.path + " " + src_filename + " /Fe\"" + aout_filename +
-              "\" 1>nul 2>nul";
+    cmdline += ci.path + " " + src_filename + " /Fe" + aout_filename +
+               " 1>nul 2>nul";
   } else {
-    cmdline = ci.path + " " + src_filename + " -o \"" + aout_filename +
-              "\" 1>/dev/null 2>/dev/null";
+    cmdline += ci.path + " " + src_filename + " -o " + aout_filename +
+               " 1>/dev/null 2>/dev/null";
   }
   if (std::system(cmdline.c_str()) != 0) {
     return std::pair<std::string, int>(std::string(), 1);
   }
 
   // Execute binary and finally get output
-  std::pair<std::string, int> ret = ns2::popen(aout_filename);
+  std::pair<std::string, int> ret = ns2::popen(
+      ns2::sanitize(ns2::join_path(dirname, aout_filename)));
   return std::pair<std::string, int>(ret.first, (ret.second ? 2 : 0));
 }
 
@@ -323,7 +324,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
 
   // Get compiler version
   std::pair<std::string, int> code =
-      popen_src(ci, ns2::join_path(COMPILER_INFOS_DIR, "version"),
+      popen_src(ci, COMPILER_INFOS_DIR, "version",
                 "printf(\"%li\", " + version_formula + ");");
   if (code.second) {
     OUTPUT << "Cannot find compiler version" << std::endl;
@@ -349,8 +350,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case infos_t::HCC:
   case infos_t::ICC:
   case infos_t::HIPCC:
-    code = popen_src(
-        ci, ns2::join_path(COMPILER_INFOS_DIR, "target"),
+    code = popen_src(ci, COMPILER_INFOS_DIR, "target",
         "#if defined(__ARM_ARCH) || defined(_M_ARM) || defined(__arm__)\n"
         "printf(\"arm\");\n"
         "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "

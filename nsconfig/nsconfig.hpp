@@ -20,8 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#ifndef CONFIG_HPP
-#define CONFIG_HPP
+#ifndef NSCONFIG_HPP
+#define NSCONFIG_HPP
 
 #include "parser.hpp"
 #include <string>

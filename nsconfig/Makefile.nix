@@ -43,6 +43,12 @@ all:
 	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) -o nsconfig
 	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp -o nstest
 
+nsconfig: ../.git/logs/HEAD
+	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) -o nsconfig
+
+nstest: ../.git/logs/HEAD
+	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp -o nstest
+
 install: all
 	mkdir -p ~/.local/bin
 	-cp nsconfig ~/.local/bin/nsconfig

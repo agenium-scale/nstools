@@ -25,6 +25,7 @@
 #include "compiler.hpp"
 #include "shell.hpp"
 #include <ctime>
+#include <cstdlib>
 #include <iostream>
 #include <ns2/fs.hpp>
 #include <ns2/string.hpp>

@@ -351,7 +351,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case infos_t::ICC:
   case infos_t::HIPCC:
     code = popen_src(ci, COMPILER_INFOS_DIR, "target",
-        "#if defined(_M_ARM_ARMV7VE) || defined(_M_ARM) || (__ARM_ARCH <= 7) "
+        "#if defined(_M_ARM_ARMV7VE) || defined(_M_ARM) || "
+        "(__ARM_ARCH > 0 && __ARM_ARCH <= 7) || "
         " || defined(__ARMEL__) || defined(__ARM_32BIT_STATE)\n"
         "printf(\"arm\");\n"
         "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "

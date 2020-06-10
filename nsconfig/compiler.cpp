@@ -353,7 +353,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     code = popen_src(ci, COMPILER_INFOS_DIR, "target",
         "#if defined(_M_ARM_ARMV7VE) || defined(_M_ARM) || "
         "(__ARM_ARCH > 0 && __ARM_ARCH <= 7) || "
-        " || defined(__ARMEL__) || defined(__ARM_32BIT_STATE)\n"
+        "defined(__ARMEL__) || defined(__ARM_32BIT_STATE)\n"
         "printf(\"arm\");\n"
         "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "
         "|| defined(__AARCH64EL__) || defined(__ARM_64BIT_STATE)\n"

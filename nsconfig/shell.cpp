@@ -1072,7 +1072,7 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
         } else if (arg[1] == 'L') {
           std::string path(shell::ify(&arg[2]));
           ret.push_back("-L" + path);
-          std::string rpath(get_rpath_argument(path, host_ci));
+          std::string rpath("'" + get_rpath_argument(path, host_ci) + "'");
           if (rpath.size() > 0) {
             ret.push_back("-Xlinker " + rpath);
           }

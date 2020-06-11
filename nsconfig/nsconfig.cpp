@@ -35,7 +35,9 @@
 // ----------------------------------------------------------------------------
 
 static std::string add_comp(parser::infos_t *pi, std::string const &type,
-                            std::string const &path, std::string const &name) {
+                            std::string const &path, std::string const &name,
+                            std::string const &version = std::string(),
+                            std::string const &archi = std::string()) {
   // This is à la C, do not want to have another function just for that...
   if (pi == NULL) {
     return "Supported compilers:\n"
@@ -53,7 +55,13 @@ static std::string add_comp(parser::infos_t *pi, std::string const &type,
   }
   ci.name = name;
   ci.path = path;
-  ci.fully_filled = false;
+  if (version.size() > 0 && archi.size()) {
+    compiler::get_version_from_string(&ci, ns2::split(version, '.'));
+    compiler::get_archi_from_string(&ci, archi);
+    ci.fully_filled = true;
+  } else {
+    ci.fully_filled = false;
+  }
   pi->compilers[name] = ci;
   return std::string();
 }
@@ -73,10 +81,20 @@ static void help(FILE *out) {
   P("  -Ghelp               List supported build systems");
   P("  -oOUTPUT             Output to OUTPUT instead of default");
   P("  -comp=SUITE          Use compiler SUITE for both C and C++");
-  P("  -ccomp=SUITE,PATH    Use PATH as default C compiler from suite SUITE");
+  P("  -ccomp=SUITE,PATH[,VERSION[,ARCHI]]");
+  P("                       Use PATH as default C compiler from suite SUITE");
+  P("                       If VERSION and/or ARCHI are given, nsconfig");
+  P("                       try to determine those. This is useful for");
+  P("                       cross compiling, ARCHI must be in { x86, x86_64,");
+  P("                       arm, aarch64 }");
   P("  -ccomp=help          List supported C compilers");
-  P("  -cppcomp=SUITE,PATH  Use PATH as default C++ compiler from suite "
+  P("  -cppcomp=SUITE,PATH[,VERSION[,ARCHI]]");
+  P("                       Use PATH as default C++ compiler from suite "
     "SUITE");
+  P("                       If VERSION and/or ARCHI are given, nsconfig");
+  P("                       try to determine those. This is useful for");
+  P("                       cross compiling, ARCHI must be in { x86, x86_64,");
+  P("                       arm, aarch64 }");
   P("  -cppcomp=help        List supported C++ compilers");
   P("  -prefix=PREFIX       Set prefix for installation to PREFIX");
   P("  -h, --help           Print the current text");
@@ -152,12 +170,16 @@ int main2(int argc, char **argv) {
                               std::string());
         exit(EXIT_SUCCESS);
       }
-      if (words.size() != 2) {
+      std::string code;
+      if (words.size() != 2 && words.size() != 4) {
         std::cerr << argv[0] << ": ERROR: wrong format for C compiler"
                   << std::endl;
         exit(EXIT_FAILURE);
+      } else if (words.size() == 2) {
+        code = add_comp(&pi, words[0], words[1], "cc");
+      } else if (words.size() == 4) {
+        code = add_comp(&pi, words[0], words[1], "cc", words[2], words[3]);
       }
-      std::string code = add_comp(&pi, words[0], words[1], "cc");
       if (code.size() > 0) {
         std::cerr << argv[0] << ": ERROR: " << code << std::endl;
         exit(EXIT_FAILURE);
@@ -172,12 +194,16 @@ int main2(int argc, char **argv) {
                               std::string());
         exit(EXIT_SUCCESS);
       }
-      if (words.size() != 2) {
+      std::string code;
+      if (words.size() != 2 && words.size() != 4) {
         std::cerr << argv[0] << ": ERROR: wrong format for C++ compiler"
                   << std::endl;
         exit(EXIT_FAILURE);
+      } else if (words.size() == 2) {
+        code = add_comp(&pi, words[0], words[1], "c++");
+      } else if (words.size() == 4) {
+        code = add_comp(&pi, words[0], words[1], "c++", words[2], words[3]);
       }
-      std::string code = add_comp(&pi, words[0], words[1], "c++");
       if (code.size() > 0) {
         std::cerr << argv[0] << ": ERROR: " << code << std::endl;
         exit(EXIT_FAILURE);

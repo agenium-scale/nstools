@@ -30,12 +30,12 @@ set so        = @shared_lib_ext
 set build_dir = @build_dir
 set asm       = @asm_ext
 set prefix    = @prefix
-#
-#set ccomp_suite   = @ccomp_suite
-#set ccomp_path    = @ccomp_path
-#set cppcomp_suite = @cppcomp_suite
-#set cppcomp_path  = @cppcomp_path
-#
+
+set ccomp_suite   = @ccomp_suite
+set ccomp_path    = @ccomp_path
+set cppcomp_suite = @cppcomp_suite
+set cppcomp_path  = @cppcomp_path
+
 ##package_name foo
 #
 #set flags_for_sse = SSE
@@ -79,15 +79,15 @@ set prefix    = @prefix
 #
 #find_header optional glog = glog/glog.h
 #
-#echo o = $o
-#echo lib = $lib
-#echo exe = $exe
-#echo so = $so
-#
-#echo ccomp_suite = @ccomp_suite
-#echo ccomp_path = @ccomp_path
-#echo cppcomp_suite = @cppcomp_suite
-#echo cppcomp_path = @cppcomp_path
+echo o = $o
+echo lib = $lib
+echo exe = $exe
+echo so = $so
+
+echo ccomp_suite = $ccomp_suite
+echo ccomp_path = $ccomp_path
+echo cppcomp_suite = $cppcomp_suite
+echo cppcomp_path = $cppcomp_path
 #
 #find_lib optional mpfr = mpfr.h mpfr $root$/../_install
 #echo "MPFR = $mpfr.flags$"

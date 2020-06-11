@@ -60,6 +60,71 @@ std::string get_correpsonding_cpp_comp(std::string const &c_comp) {
 
 // ----------------------------------------------------------------------------
 
+static int compute_version(std::vector<std::string> const &str,
+                           int multiplier0, int multiplier1, int multiplier2) {
+  if (str.size() == 0) {
+    return 0;
+  }
+  int ret = 0;
+  if (str.size() > 0 && multiplier0 > 0) {
+    ret += ::atoi(str[0].c_str()) * multiplier0;
+  }
+  if (str.size() > 1 && multiplier1 > 0) {
+    ret += ::atoi(str[1].c_str()) * multiplier1;
+  }
+  if (str.size() > 2 && multiplier2 > 0) {
+    ret += ::atoi(str[2].c_str()) * multiplier2;
+  }
+  return ret;
+}
+
+// ----------------------------------------------------------------------------
+
+void get_version_from_string(compiler::infos_t *ci_,
+                             std::vector<std::string> const &str) {
+  compiler::infos_t &ci = *ci_;
+  switch (ci.type) {
+  case compiler::infos_t::GCC:
+  case compiler::infos_t::Clang:
+  case compiler::infos_t::ARMClang:
+  case compiler::infos_t::NVCC:
+    ci.version = compute_version(str, 10000, 100, 1);
+    break;
+  case compiler::infos_t::MSVC:
+  case compiler::infos_t::ICC:
+    ci.version = compute_version(str, 100, 1, 0);
+    break;
+  case compiler::infos_t::HIPCC:
+  case compiler::infos_t::HCC:
+    ci.version = compute_version(str, 10000, 100, 0);
+    break;
+  case compiler::infos_t::None:
+    NS2_THROW(std::runtime_error, "Invalid compiler");
+    break;
+  }
+}
+
+// ----------------------------------------------------------------------------
+
+void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
+  infos_t &ci = *ci_;
+  if (str == "arm") {
+    ci.arch = compiler::infos_t::ARM;
+    ci.nbits = 32;
+  } else if (str == "aarch64") {
+    ci.arch = compiler::infos_t::ARM;
+    ci.nbits = 64;
+  } else if (str == "x86") {
+    ci.arch = compiler::infos_t::Intel;
+    ci.nbits = 32;
+  } else if (str == "x86_64") {
+    ci.arch = compiler::infos_t::Intel;
+    ci.nbits = 64;
+  }
+}
+
+// ----------------------------------------------------------------------------
+
 int get_type(infos_t *ci, std::string const &str) {
   if (str == "gcc" || str == "g++") {
     ci->type = compiler::infos_t::GCC;
@@ -370,19 +435,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
       OUTPUT << "Cannot find compiler target" << std::endl;
       exit(EXIT_FAILURE);
     }
-    if (code.first == "arm") {
-      ci.arch = compiler::infos_t::ARM;
-      ci.nbits = 32;
-    } else if (code.first == "aarch64") {
-      ci.arch = compiler::infos_t::ARM;
-      ci.nbits = 64;
-    } else if (code.first == "x86") {
-      ci.arch = compiler::infos_t::Intel;
-      ci.nbits = 32;
-    } else if (code.first == "x86_64") {
-      ci.arch = compiler::infos_t::Intel;
-      ci.nbits = 64;
-    }
+    get_archi_from_string(&ci, code.first);
     break;
   case infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");

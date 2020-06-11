@@ -25,6 +25,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 // ----------------------------------------------------------------------------
 // Forward declaration
@@ -63,6 +64,10 @@ std::string get_type_str(compiler::infos_t::type_t const);
 std::string get_type_and_lang_str(compiler::infos_t::type_t const,
                                   compiler::infos_t::lang_t const);
 std::string get_correpsonding_cpp_comp(std::string const &);
+std::string get_correpsonding_cpp_comp(std::string const &);
+void get_archi_from_string(compiler::infos_t *, std::string const &);
+void get_version_from_string(compiler::infos_t *,
+                             std::vector<std::string> const &);
 
 // ----------------------------------------------------------------------------
 

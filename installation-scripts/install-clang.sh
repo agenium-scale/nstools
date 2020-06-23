@@ -1,5 +1,5 @@
 #!/bin/sh -e
-# Copyright (c) 2019 Agenium Scale
+# Copyright (c) 2020 Agenium Scale
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,124 +38,37 @@ WORK_DIR="${PWD}/tmp"
 J="-j$(nproc)"
 mkdir -p ${WORK_DIR}
 
-URL_PREFIX=http://llvm.org/releases/${CLANG_VER}
-LLVM_XZ=llvm-${CLANG_VER}.src.tar.xz
-CFE_XZ=cfe-${CLANG_VER}.src.tar.xz
-CXX_XZ=libcxx-${CLANG_VER}.src.tar.xz
-CXXABI_XZ=libcxxabi-${CLANG_VER}.src.tar.xz
-RT_XZ=compiler-rt-${CLANG_VER}.src.tar.xz
-UNWIND_XZ=libunwind-${CLANG_VER}.src.tar.xz
-OPENMP_XZ=openmp-${CLANG_VER}.src.tar.xz
-LLVM_DIR=$(basename ${LLVM_XZ} .tar.xz)
-CFE_DIR=$(basename ${CFE_XZ} .tar.xz)
-CXX_DIR=$(basename ${CXX_XZ} .tar.xz)
-CXXABI_DIR=$(basename ${CXXABI_XZ} .tar.xz)
-RT_DIR=$(basename ${RT_XZ} .tar.xz)
-UNWIND_DIR=$(basename ${UNWIND_XZ} .tar.xz)
-OPENMP_DIR=$(basename ${OPENMP_XZ} .tar.xz)
+URL_PREFIX=https://github.com/llvm/llvm-project/releases/download/llvmorg-${CLANG_VER}
+LLVM_PROJECT_XZ=llvm-project-${CLANG_VER}.tar.xz
+LLVM_PROJECT_DIR=$(basename ${LLVM_PROJECT_XZ} .tar.xz)
 
 # Delete previous attempts
-rm -f ${WORK_DIR}/${LLVM_XZ}
-rm -f ${WORK_DIR}/${CFE_XZ}
-rm -f ${WORK_DIR}/${CXX_XZ}
-rm -f ${WORK_DIR}/${CXXABI_XZ}
-rm -f ${WORK_DIR}/${RT_XZ}
-rm -f ${WORK_DIR}/${UNWIND_XZ}
-rm -f ${WORK_DIR}/${OPENMP_XZ}
-rm -rf ${WORK_DIR}/${LLVM_DIR}
+rm -f ${WORK_DIR}/${LLVM_PROJECT_XZ}
 
 # Download what is necessary
-(cd ${WORK_DIR} && curl -L ${URL_PREFIX}/${LLVM_XZ} -o ${LLVM_XZ} \
-                && curl -L ${URL_PREFIX}/${CFE_XZ} -o ${CFE_XZ} \
-                && curl -L ${URL_PREFIX}/${CXX_XZ} -o ${CXX_XZ} \
-                && curl -L ${URL_PREFIX}/${CXXABI_XZ} -o ${CXXABI_XZ} \
-                && curl -L ${URL_PREFIX}/${RT_XZ} -o ${RT_XZ} \
-                && curl -L ${URL_PREFIX}/${UNWIND_XZ} -o ${UNWIND_XZ} \
-                && curl -L ${URL_PREFIX}/${OPENMP_XZ} -o ${OPENMP_XZ})
+(cd ${WORK_DIR} && \
+ curl -L ${URL_PREFIX}/${LLVM_PROJECT_XZ} -o ${LLVM_PROJECT_XZ})
 
 # Decompress and put files to the right place 
-(cd ${WORK_DIR} && tar xf ${LLVM_XZ})
-(cd ${WORK_DIR} && tar xf ${CFE_XZ})
-(cd ${WORK_DIR} && mv ${CFE_DIR} ${LLVM_DIR}/tools/clang)
-(cd ${WORK_DIR} && tar xf ${CXX_XZ})
-(cd ${WORK_DIR} && mv ${CXX_DIR} ${LLVM_DIR}/projects/libcxx)
-(cd ${WORK_DIR} && tar xf ${CXXABI_XZ})
-(cd ${WORK_DIR} && mv ${CXXABI_DIR} ${LLVM_DIR}/projects/libcxxabi)
-(cd ${WORK_DIR} && tar xf ${RT_XZ})
-(cd ${WORK_DIR} && mv ${RT_DIR} ${LLVM_DIR}/projects/compiler-rt)
-(cd ${WORK_DIR} && tar xf ${UNWIND_XZ})
-(cd ${WORK_DIR} && mv ${UNWIND_DIR} ${LLVM_DIR}/projects/libunwind)
+(cd ${WORK_DIR} && tar xf ${LLVM_PROJECT_XZ})
 
-# Stage0: need a clang to compile with libstdc++ and libgcc
-echo 'stage0' > ${WORK_DIR}/${LLVM_DIR}/current_stage
-STAGE0_BUILD_DIR="${WORK_DIR}/${LLVM_DIR}/stage0_build"
-STAGE0_PREFIX="${PWD}/${WORK_DIR}/${LLVM_DIR}/stage0_install"
-mkdir -p ${STAGE0_BUILD_DIR}
-(cd ${STAGE0_BUILD_DIR} \
- && cmake .. -G "Unix Makefiles" \
-             -DCMAKE_C_COMPILER=$(which gcc) \
-             -DCMAKE_CXX_COMPILER=$(which g++) \
-             -DCLANG_DEFAULT_CXX_STDLIB=libc++ \
-             -DCMAKE_CXX_LINK_FLAGS="-Wl,-rpath,${LD_LIBRARY_PATH}" \
-             -DCMAKE_INSTALL_PREFIX=${STAGE0_PREFIX} \
-             -DCMAKE_BUILD_TYPE=Release)
-(cd ${STAGE0_BUILD_DIR} && make ${J} && make install)
-
-# Stage1: get rid of libgcc for libc++ and libc++abi
-echo 'stage1' > ${WORK_DIR}/${LLVM_DIR}/current_stage
-STAGE1_BUILD_DIR="${WORK_DIR}/${LLVM_DIR}/stage1_build"
-STAGE1_PREFIX="${PWD}/${WORK_DIR}/${LLVM_DIR}/stage1_install"
-mkdir -p ${STAGE1_BUILD_DIR}
-(cd ${STAGE1_BUILD_DIR} \
- && cmake .. -G "Unix Makefiles" \
-             -DCMAKE_C_COMPILER=${STAGE0_PREFIX}/bin/clang \
-             -DCMAKE_CXX_COMPILER=${STAGE0_PREFIX}/bin/clang++ \
-             -DCLANG_DEFAULT_CXX_STDLIB=libc++ \
-             -DCLANG_DEFAULT_RTLIB=compiler-rt \
-             -DLIBCXXABI_USE_LLVM_UNWINDER=YES \
-             -DLIBCXX_USE_COMPILER_RT=YES \
-             -DLIBCXXABI_USE_COMPILER_RT=YES \
-             -DCMAKE_CXX_LINK_FLAGS="-Wl,-rpath,${LD_LIBRARY_PATH}" \
-             -DCMAKE_INSTALL_PREFIX=${STAGE1_PREFIX} \
-             -DCMAKE_BUILD_TYPE=Release)
-(cd ${STAGE1_BUILD_DIR} && make ${J} && make install)
-
-# Stage2: configure, build and install, get rid of libgcc for all clang binaries
-echo 'stage2' > ${WORK_DIR}/${LLVM_DIR}/current_stage
-BUILD_DIR="${WORK_DIR}/${LLVM_DIR}/build"
-mkdir -p ${BUILD_DIR}
-(cd ${BUILD_DIR} && cmake .. -G "Unix Makefiles" \
-                             -DCMAKE_C_COMPILER=${STAGE1_PREFIX}/bin/clang \
-                             -DCMAKE_CXX_COMPILER=${STAGE1_PREFIX}/bin/clang++ \
-                             -DCLANG_DEFAULT_CXX_STDLIB=libc++ \
-                             -DCLANG_DEFAULT_RTLIB=compiler-rt \
-                             -DLIBCXXABI_USE_LLVM_UNWINDER=YES \
-                             -DLIBCXX_USE_COMPILER_RT=YES \
-                             -DLIBCXXABI_USE_COMPILER_RT=YES \
-                             -DCMAKE_INSTALL_PREFIX=${PREFIX} \
-                             -DCMAKE_BUILD_TYPE=Release)
-(cd ${BUILD_DIR} && make ${J} && mysudo "make install")
-
-# Configure, build and install LLVM's OpenMP, for some reason it
-# cannot be compiled at the same time as the rest of LLVM/Clang
-echo 'openmp' > ${WORK_DIR}/${LLVM_DIR}/current_stage
-(cd ${WORK_DIR} && tar xf ${OPENMP_XZ})
-(cd ${WORK_DIR} && mv ${OPENMP_DIR} ${LLVM_DIR}/projects/openmp)
-OPENMP_BUILD_DIR="${WORK_DIR}/${LLVM_DIR}/openmp_build"
-mkdir -p ${OPENMP_BUILD_DIR}
-(cd ${OPENMP_BUILD_DIR} && cmake ${WORK_DIR}/${LLVM_DIR}/projects/openmp \
-                                 -G "Unix Makefiles" \
-                                 -DCMAKE_C_COMPILER=${PREFIX}/bin/clang \
-                                 -DCMAKE_CXX_COMPILER=${PREFIX}/bin/clang++ \
-                                 -DCMAKE_INSTALL_PREFIX=${PREFIX} \
-                                 -DCMAKE_BUILD_TYPE=Release)
-(cd ${OPENMP_BUILD_DIR} && make ${J} omp && mysudo "make install")
+# Build LLVM and stuff
+PROJECTS="clang;libcxx;libcxxabi;libunwind;lldb;compiler-rt;lld"
+BUILD_DIR="${WORK_DIR}/${LLVM_PROJECT_DIR}/build"
+mkdir -p "${BUILD_DIR}"
+(cd "${BUILD_DIR}" && cmake ../llvm \
+                            -DCMAKE_C_COMPILER=gcc \
+                            -DCMAKE_CXX_COMPILER=g++ \
+                            -DCMAKE_INSTALL_PREFIX=${PREFIX} \
+                            -DCMAKE_BUILD_TYPE=Release \
+                            -DLLVM_ENABLE_PROJECTS="${PROJECTS}")
+(cd ${BUILD_DIR} && make ${J} && mysudo make install)
 
 # Create corresponding modulefile
 mysudo mkdir -p ${MODULE_PATH}
 NOW=$(date)
 
-cat >${WORK_DIR}/${LLVM_DIR}/modulefile <<EOF
+cat >${WORK_DIR}/${LLVM_PROJECT_DIR}/modulefile <<EOF
 #%Module -*- tcl -*-
 ## Module for Clang
 ## Automatically generated on ${NOW}
@@ -173,11 +86,11 @@ prepend-path  C_INCLUDE_PATH     ${PREFIX}/include
 prepend-path  CPLUS_INCLUDE_PATH ${PREFIX}/include
 EOF
 
-mysudo "cp ${WORK_DIR}/${LLVM_DIR}/modulefile ${MODULE_FILE}"
+mysudo "cp ${WORK_DIR}/${LLVM_PROJECT_DIR}/modulefile ${MODULE_FILE}"
 
 # Test whether it works
 CLANG="${PREFIX}/bin/clang++"
-TMP_CPP="${WORK_DIR}/${LLVM_DIR}/tmp.cpp"
+TMP_CPP="${WORK_DIR}/${LLVM_PROJECT_DIR}/tmp.cpp"
 
 cat >${TMP_CPP} <<EOF
 #include <iostream>
@@ -205,5 +118,8 @@ int main() {
 }
 EOF
 
-(cd ${WORK_DIR}/${LLVM_DIR} && ${CLANG} -std=c++11 -Wall -Wextra tmp.cpp)
-(cd ${WORK_DIR}/${LLVM_DIR} && LD_LIBRARY_PATH=${PREFIX}/lib ./a.out)
+(cd ${WORK_DIR}/${LLVM_PROJECT_DIR} && \
+ ${CLANG} -std=c++11 -Wall -Wextra tmp.cpp)
+
+(cd ${WORK_DIR}/${LLVM_PROJECT_DIR} && \
+ LD_LIBRARY_PATH=${PREFIX}/lib ./a.out)

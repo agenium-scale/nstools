@@ -99,6 +99,16 @@ struct infos_t {
   bool generate_header_deps_flags;
   compiler::infos_t current_compiler;
 
+  // to collect helpers from ifnot_set
+  bool getting_vars_list;
+  struct var_helper_t {
+    std::string var_name;
+    std::string helper;
+    parser::cursor_t cursor;
+  };
+  typedef std::vector<var_helper_t> vars_list_t;
+  vars_list_t vars_list;
+
   enum action_t {
     Permissive, // P = permissive = translate what it can
     Translate,  // T = translate and error when cannot
@@ -124,22 +134,12 @@ struct infos_t {
 
 // ----------------------------------------------------------------------------
 
-struct var_helper_t {
-  std::string var_name;
-  std::string helper;
-  parser::cursor_t cursor;
-};
-
-typedef std::vector<var_helper_t> vars_list_t;
-
-// ----------------------------------------------------------------------------
-
 std::ostream &operator<<(std::ostream &, const token_t &);
 rules_t parse(ns2::ifile_t &, infos_t *);
 void add_variable(variables_t *, std::string const &, std::string const &,
                   bool, bool);
 void die(std::string const &, cursor_t const &);
-vars_list_t list_variables(ns2::ifile_t &);
+void list_variables(ns2::ifile_t &, infos_t *);
 
 // ----------------------------------------------------------------------------
 

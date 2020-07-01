@@ -309,7 +309,11 @@ int main2(int argc, char **argv) {
 
   } else if (!strcmp(generator, "list-vars")) {
 
-    parser::vars_list_t vars = parser::list_variables(in);
+    if (pi.verbosity == VERBOSITY_NORMAL) {
+      pi.verbosity = VERBOSITY_QUIET;
+    }
+    parser::list_variables(in, &pi);
+    parser::infos_t::vars_list_t &vars = pi.vars_list;
     if (vars.size() == 0) {
       std::cout << "Project variables list: (none)" << std::endl;
     } else {

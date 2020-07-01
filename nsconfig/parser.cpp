@@ -189,8 +189,9 @@ static void tokenize(std::vector<token_t> &tokens, std::string const &str,
 // ----------------------------------------------------------------------------
 
 static std::string substitute(std::string const &str, cursor_t const &cursor,
-                              variables_t *variables_) {
-  variables_t &variables = *variables_;
+                              infos_t *pi_) {
+  infos_t &pi = *pi_;
+  variables_t &variables = pi.variables;
   std::string ret;
   cursor_t cur(cursor, str);
 
@@ -232,8 +233,9 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
           cur.col = int(i + 1);
           die("cannot find closing '}'", cur);
         }
-        key = substitute(std::string(str.begin() + long(i0),
-                                     str.begin() + long(i1)), cur, &variables);
+        key = substitute(
+            std::string(str.begin() + long(i0), str.begin() + long(i1)), cur,
+            &pi);
 
         // case of '$...$', we take what's inside as the variable name and
         // return its value
@@ -248,15 +250,19 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
 
       variables_t::iterator it = variables.find(key);
       if (it == variables.end()) {
-        cur.col = int(i);
-        std::string suggestions(
-            get_first_suggestions(ns2::levenshtein_sort(variables, key)));
-        if (suggestions.size() > 0) {
-          die("don't know how to expand this: \"" + key + "\", did you mean " +
-                  suggestions + "?",
-              cur);
+        if (pi.getting_vars_list) {
+          ret += key;
         } else {
-          die("don't know how to expand this: \"" + key + "\"", cur);
+          cur.col = int(i);
+          std::string suggestions(
+              get_first_suggestions(ns2::levenshtein_sort(variables, key)));
+          if (suggestions.size() > 0) {
+            die("don't know how to expand this: \"" + key +
+                    "\", did you mean " + suggestions + "?",
+                cur);
+          } else {
+            die("don't know how to expand this: \"" + key + "\"", cur);
+          }
         }
       } else {
         ret += it->second.second;
@@ -529,7 +535,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
 
     // perform variable substitution
     cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-    line = substitute(trim_raw_line, cursor, &pi.variables);
+    line = substitute(trim_raw_line, cursor, &pi);
     cursor.before_after_expand = cursor_t::AfterVariableExpansion;
     cursor.source = line;
 
@@ -545,7 +551,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       cursor.lineno++;
       std::getline(in, line);
       cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-      line = substitute(ns2::strip(line), cursor, &pi.variables);
+      line = substitute(ns2::strip(line), cursor, &pi);
       cursor.before_after_expand = cursor_t::AfterVariableExpansion;
       cursor.source = line;
       if (line.size() == 0) {
@@ -596,6 +602,95 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
 
     // just a shortcut
     std::string const &head = tokens[0].text;
+
+    // set and ifnot_set
+    // We begin by this command because it allows us to skip the rest
+    // of the commands when the user just wants to list variables that can
+    // be set outside of the build.nsconfig
+    if (!cmd && (head == "set" || head == "ifnot_set")) {
+      if (tokens.size() == 1 && head == "ifnot_set") {
+        die("expected variable description after", tokens[0].cursor);
+      }
+      size_t i0 = (head == "set" ? 1 : 2);
+      if (tokens.size() == i0) {
+        die("expected variable name after", tokens[i0 - 1].cursor);
+      }
+      i0++;
+      if (tokens.size() == i0) {
+        die("expected '=' after", tokens[i0 - 1].cursor);
+      }
+      if (tokens[i0].text != "=") {
+        die("expected '=' here", tokens[i0].cursor);
+      }
+      std::string const &key = tokens[i0 - 1].text;
+      std::string value(
+          ns2::join(tokens.begin() + long(i0 + 1), tokens.end(), " "));
+
+      // handle special requests only when not getting variables
+      if (value[0] == '@') {
+        if (value == "@source_dir") {
+#ifdef NS2_IS_MSVC
+          value = ns2::replace(pi.source_dir, '\\', '/');
+#else
+          value = pi.source_dir;
+#endif
+        } else if (value == "@build_dir") {
+#ifdef NS2_IS_MSVC
+          value = ns2::replace(pi.build_dir, '\\', '/');
+#else
+          value = pi.build_dir;
+#endif
+        } else if (value == "@make_command") {
+          value = pi.make_command;
+        } else if (value == "@prefix") {
+          value = pi.install_prefix;
+        } else if (value == "@obj_ext" || value == "@static_lib_ext" ||
+                   value == "@shared_lib_ext" || value == "@shared_link_ext" ||
+                   value == "@exe_ext" || value == "@asm_ext") {
+          compiler::infos_t ci = compiler::get("cc", &pi);
+          value = get_ext(ci.type, value);
+        } else if (value == "@ccomp_suite") {
+          compiler::infos_t ci = compiler::get("cc", &pi);
+          value = compiler::get_type_and_lang_str(ci.type, ci.lang);
+        } else if (value == "@ccomp_path") {
+          compiler::infos_t ci = compiler::get("cc", &pi);
+          value = ci.path;
+        } else if (value == "@cppcomp_suite") {
+          compiler::infos_t ci = compiler::get("c++", &pi);
+          value = compiler::get_type_and_lang_str(ci.type, ci.lang);
+        } else if (value == "@cppcomp_path") {
+          compiler::infos_t ci = compiler::get("c++", &pi);
+          value = ci.path;
+        } else {
+          std::string suggestions(get_first_suggestions(ns2::levenshtein_sort(
+              constants, sizeof(constants) / sizeof(char *), value)));
+          if (suggestions.size() > 0) {
+            die("unknown constant \"" + value + "\", did you mean " +
+                    suggestions + "?",
+                tokens[i0 + 1].cursor);
+          } else {
+            die("unknown statement \"" + value + "\"", tokens[i0 + 1].cursor);
+          }
+        }
+      }
+      add_variable(&pi.variables, key, value, true, head == "set");
+      if (head == "ifnot_set") {
+        infos_t::var_helper_t buf;
+        buf.var_name = tokens[2].text;
+        buf.helper = tokens[1].text;
+        buf.cursor = cursor;
+        pi.vars_list.push_back(buf);
+      }
+      continue;
+    }
+
+    // When we are only looking for ifnot_set variables we do not continue
+    // parsing the other commands. This prevents the user from seeing errors
+    // in the build.config file and I don't know whether it is a good thing
+    // or not.
+    if (pi.getting_vars_list) {
+      continue;
+    }
 
     // echo
     if (!cmd && head == "echo") {
@@ -687,77 +782,6 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
                    value == NULL ? std::string() : std::string(value), true,
                    true);
 #endif
-      continue;
-    }
-
-    // set and ifnot_set
-    if (!cmd && (head == "set" || head == "ifnot_set")) {
-      if (tokens.size() == 1 && head == "ifnot_set") {
-        die("expected variable description after", tokens[0].cursor);
-      }
-      size_t i0 = (head == "set" ? 1 : 2);
-      if (tokens.size() == i0) {
-        die("expected variable name after", tokens[i0 - 1].cursor);
-      }
-      i0++;
-      if (tokens.size() == i0) {
-        die("expected '=' after", tokens[i0 - 1].cursor);
-      }
-      if (tokens[i0].text != "=") {
-        die("expected '=' here", tokens[i0].cursor);
-      }
-      std::string const &key = tokens[i0 - 1].text;
-      std::string value(
-          ns2::join(tokens.begin() + long(i0 + 1), tokens.end(), " "));
-
-      // handle special requests
-      if (value[0] == '@') {
-        if (value == "@source_dir") {
-#ifdef NS2_IS_MSVC
-          value = ns2::replace(pi.source_dir, '\\', '/');
-#else
-          value = pi.source_dir;
-#endif
-        } else if (value == "@build_dir") {
-#ifdef NS2_IS_MSVC
-          value = ns2::replace(pi.build_dir, '\\', '/');
-#else
-          value = pi.build_dir;
-#endif
-        } else if (value == "@make_command") {
-          value = pi.make_command;
-        } else if (value == "@prefix") {
-          value = pi.install_prefix;
-        } else if (value == "@obj_ext" || value == "@static_lib_ext" ||
-                   value == "@shared_lib_ext" || value == "@shared_link_ext" ||
-                   value == "@exe_ext" || value == "@asm_ext") {
-          compiler::infos_t ci = compiler::get("cc", &pi);
-          value = get_ext(ci.type, value);
-        } else if (value == "@ccomp_suite") {
-          compiler::infos_t ci = compiler::get("cc", &pi);
-          value = compiler::get_type_and_lang_str(ci.type, ci.lang);
-        } else if (value == "@ccomp_path") {
-          compiler::infos_t ci = compiler::get("cc", &pi);
-          value = ci.path;
-        } else if (value == "@cppcomp_suite") {
-          compiler::infos_t ci = compiler::get("c++", &pi);
-          value = compiler::get_type_and_lang_str(ci.type, ci.lang);
-        } else if (value == "@cppcomp_path") {
-          compiler::infos_t ci = compiler::get("c++", &pi);
-          value = ci.path;
-        } else {
-          std::string suggestions(get_first_suggestions(ns2::levenshtein_sort(
-              constants, sizeof(constants) / sizeof(char *), value)));
-          if (suggestions.size() > 0) {
-            die("unknown constant \"" + value + "\", did you mean " +
-                    suggestions + "?",
-                tokens[i0 + 1].cursor);
-          } else {
-            die("unknown statement \"" + value + "\"", tokens[i0 + 1].cursor);
-          }
-        }
-      }
-      add_variable(&pi.variables, key, value, true, head == "set");
       continue;
     }
 
@@ -1251,6 +1275,7 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
   infos_t &pi = *pi_;
 
   // Do the real parsing
+  pi.getting_vars_list = false;
   parse_rec(&ret, in, &pi);
 
   // Check for unused variables
@@ -1409,61 +1434,11 @@ void die(std::string const &msg, cursor_t const &cursor) {
 
 // ----------------------------------------------------------------------------
 
-vars_list_t list_variables(ns2::ifile_t &in) {
-  cursor_t cursor(in.filename());
-  vars_list_t ret;
-
-  while (!in.eof()) {
-    std::vector<token_t> tokens;
-
-    // read line and tokenize it
-    cursor.lineno++;
-    std::string raw_line;
-    std::getline(in, raw_line);
-    std::string trim_raw_line = ns2::strip(raw_line);
-    if (trim_raw_line.size() == 0 || trim_raw_line[0] == '#' ||
-        raw_line[0] == '\t') {
-      continue;
-    }
-
-    // tokenize
-    tokenize(tokens, trim_raw_line, cursor);
-
-    // lines endings with '\' were one and the same split into several
-    while (!in.eof() && tokens.size() > 0 && tokens.back().text == "\\") {
-      // remove trailing '\'
-      tokens.pop_back();
-
-      // read next line and tokenize it
-      cursor.lineno++;
-      std::string line;
-      std::getline(in, line);
-      trim_raw_line = ns2::strip(line);
-      if (trim_raw_line.size() == 0) {
-        break;
-      }
-      if (trim_raw_line[0] == '#') {
-        continue;
-      }
-      tokenize(tokens, trim_raw_line, cursor);
-    }
-
-    if (tokens[0].text != "ifnot_set") {
-      continue;
-    }
-
-    if (tokens.size() < 3) {
-      die("incorrect syntax, unable to list variables", tokens[0].cursor);
-    }
-
-    var_helper_t buf;
-    buf.var_name = tokens[2].text;
-    buf.helper = tokens[1].text;
-    buf.cursor = cursor;
-    ret.push_back(buf);
-  }
-
-  return ret;
+void list_variables(ns2::ifile_t &in, infos_t *pi_) {
+  infos_t &pi = *pi_;
+  pi.getting_vars_list = true;
+  rules_t rules;
+  parse_rec(&rules, in, &pi);
 }
 
 // ----------------------------------------------------------------------------

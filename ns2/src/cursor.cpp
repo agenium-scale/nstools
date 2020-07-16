@@ -38,6 +38,13 @@ NS_DLLSPEC void cursor_t::newline() {
   col = 0;
 }
 
+NS_DLLSPEC cursor_t &cursor_t::operator=(cursor_t const &other) {
+  this->lineno = other.lineno;
+  this->col = other.col;
+  this->line = other.line;
+  return *this;
+}
+
 NS_DLLSPEC void cursor_t::nextchar() { col++; }
 
 NS_DLLSPEC void cursor_t::advanceby(size_t n) { col += n; }

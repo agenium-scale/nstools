@@ -36,6 +36,7 @@ struct cursor_t {
 
   NS_DLLSPEC cursor_t();
   NS_DLLSPEC cursor_t(cursor_t const &);
+  NS_DLLSPEC cursor_t &operator=(cursor_t const &);
   NS_DLLSPEC void newline();
   NS_DLLSPEC void nextchar();
   NS_DLLSPEC void advanceby(size_t);

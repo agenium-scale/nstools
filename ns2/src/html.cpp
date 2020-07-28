@@ -69,26 +69,39 @@ NS_DLLSPEC std::string html_img(std::string const &url,
 
 // ----------------------------------------------------------------------------
 
-NS_DLLSPEC std::string
-html_tr_with_alignments(std::vector<std::string> const &cells,
-                        std::vector<text_align_t> const &aligns) {
+static std::string
+html_td_th_with_alignments(std::vector<std::string> const &cells,
+                           std::vector<text_align_t> const &aligns,
+                           std::string const &td_th) {
   std::string ret("<tr>\n");
   for (size_t i = 0; i < cells.size(); i++) {
     switch (aligns[i]) {
     case Left:
-      ret += "<td style=\"text-align: left;\">";
+      ret += "<" + td_th + " style=\"text-align: left;\">";
       break;
     case Center:
-      ret += "<td style=\"text-align: center;\">";
+      ret += "<" + td_th + " style=\"text-align: center;\">";
       break;
     case Right:
-      ret += "<td style=\"text-align: right;\">";
+      ret += "<" + td_th + " style=\"text-align: right;\">";
       break;
     }
-    ret += cells[i] + "</td>\n";
+    ret += cells[i] + "</" + td_th + ">\n";
   }
   ret += "</tr>";
   return ret;
+}
+
+NS_DLLSPEC std::string
+html_td_with_alignments(std::vector<std::string> const &cells,
+                        std::vector<text_align_t> const &aligns) {
+  return html_td_th_with_alignments(cells, aligns, "td");
+}
+
+NS_DLLSPEC std::string
+html_th_with_alignments(std::vector<std::string> const &cells,
+                        std::vector<text_align_t> const &aligns) {
+  return html_td_th_with_alignments(cells, aligns, "th");
 }
 
 // ----------------------------------------------------------------------------

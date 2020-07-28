@@ -197,7 +197,7 @@ struct status_t {
   std::string thead(std::vector<std::string> const &cells) {
     switch (mi.output_format) {
     case HTML:
-      return "<thead>\n" + html_tr_with_alignments(cells, table_alignment) +
+      return "<thead>\n" + html_th_with_alignments(cells, table_alignment) +
              "\n</thead><tbody>\n";
     }
     return ""; // To handle GCC warning
@@ -206,7 +206,7 @@ struct status_t {
   std::string tbody_td(std::vector<std::string> const &cells) {
     switch (mi.output_format) {
     case HTML:
-      return html_tr_with_alignments(cells, table_alignment);
+      return html_td_with_alignments(cells, table_alignment);
     }
     return ""; // To handle GCC warning
   }

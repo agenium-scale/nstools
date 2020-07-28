@@ -42,7 +42,10 @@ NS_DLLSPEC std::string htmlize(std::string const &);
 NS_DLLSPEC std::string html_href(std::string const &, std::string const &);
 NS_DLLSPEC std::string html_img(std::string const &, std::string const &);
 NS_DLLSPEC std::string
-html_tr_with_alignments(std::vector<std::string> const &,
+html_td_with_alignments(std::vector<std::string> const &,
+                        std::vector<text_align_t> const &);
+NS_DLLSPEC std::string
+html_th_with_alignments(std::vector<std::string> const &,
                         std::vector<text_align_t> const &);
 
 // ----------------------------------------------------------------------------

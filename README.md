@@ -489,6 +489,10 @@ Move `path` to `dest`.
 is true. If the condition is false and an `else` is present then execute
 `cmd2`.
 
+### `ar rcs out file1 file2 ...`
+
+Create the static library `out` with input files `file1`, `file2`, ...
+
 ### `compiler options file1 file2 ... fileN`
 
 `Compiler` can be one of the following:

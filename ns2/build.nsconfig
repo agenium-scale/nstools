@@ -21,7 +21,7 @@ build_file libns2$so deps $obj.files
 	c++ @in -o @out $ldflags$ $flags$ -DNS_COMPILING_LIBRARY
 
 build_file libns2$a deps $obj.files
-	[L:R] ar rcs @out @in
+	ar rcs @out @in
 
 build_file jsonc$exe autodeps $root$/src/jsonc.cpp libns2$a
 	c++ -std=c++98 $flags $root$/src/jsonc.cpp -L. -lns2 -o @out

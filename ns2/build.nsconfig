@@ -30,6 +30,7 @@ build_file jsonc$exe autodeps $root$/src/jsonc.cpp libns2$a
 # Install/Package library
 
 install_file libns2$so lib
+install_file jsonc$exe bin
 [L] install_file libns2$a lib
 [W] install_file libns2$lib lib
 install_dir $root$/include .

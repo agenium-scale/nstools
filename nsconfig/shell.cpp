@@ -314,6 +314,22 @@ static std::string mv(std::vector<parser::token_t> const &tokens) {
 
 // ----------------------------------------------------------------------------
 
+static std::string ar(std::vector<parser::token_t> const &tokens) {
+  if (tokens.size() < 4) {
+    die("ar must have at least two arguments", tokens[0].cursor);
+  }
+  if (tokens[1].text != "rcs") {
+    die("only accepted argument is 'rcs'", tokens[1].cursor);
+  }
+#ifdef NS2_IS_MSVC
+  return "lib /nologo /out:" + tokens[2].text + append_filenames(tokens, 3);
+#else
+  return "ar rcs" + append_filenames(tokens, 2);
+#endif
+}
+
+// ----------------------------------------------------------------------------
+
 static size_t
 find_corresponding_paren(std::vector<parser::token_t> const &tokens,
                          size_t i0) {
@@ -1247,6 +1263,8 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
     return mv(tokens);
   } else if (cmd == "if") {
     return if_(tokens, &pi);
+  } else if (cmd == "ar") {
+    return ar(tokens);
   } else if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
              cmd == "g++" || cmd == "clang" || cmd == "clang++" ||
              cmd == "mingw" || cmd == "armclang" || cmd == "armclang++" ||

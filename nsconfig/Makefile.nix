@@ -29,8 +29,8 @@ OFLAGS       = -O3 -g
 CXX_FLAGS    = $(OFLAGS) -pthread -std=c++98 -pedantic \
                -Wall -Wextra -Wconversion \
                -I../ns2/include -DNS_NO_DLLSPEC
-NS2_SRC      = ../ns2/src/string.cpp ../ns2/src/fs.cpp ../ns2/src/process.cpp \
-               ../ns2/src/backtrace.cpp ../ns2/src/levenshtein.cpp
+NS2_SRC      = ../ns2/lib/string.cpp ../ns2/lib/fs.cpp ../ns2/lib/process.cpp \
+               ../ns2/lib/backtrace.cpp ../ns2/lib/levenshtein.cpp
 NSCONFIG_SRC = backend_ninja.cpp \
                backend_make.cpp \
                compiler.cpp \

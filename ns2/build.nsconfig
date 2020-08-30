@@ -1,4 +1,4 @@
-## Get OS/Compiler specific file extensions
+# Get OS/Compiler specific file extensions
 set o     = @obj_ext
 set exe   = @exe_ext
 set so    = @shared_lib_ext
@@ -6,28 +6,27 @@ set a     = @static_lib_ext
 set lib   = @shared_link_ext
 set root  = @source_dir
 
-#ifnot_set "Directory prefix for external deps" extern_dir = $root$/../_install
-
 # Compiler flags
-set flags = -Wall -fPIC -O3 -g -I$root$/include -DNS_COMPILING_LIBRARY
+set flags = -Wall -fPIC -O3 -g -I$root$/include
 [L] set ldflags = -shared
 [W] set ldflags = -shared -l:Shlwapi.lib -l:Dbghelp.lib
 
 # ------------------------------------------------------------------------------
-
 # Build library
 
 build_files obj foreach glob:$root$/lib/*.cpp as %r$o deps @item
-	c++ -c @item $flags$ -std=c++11 -o @out
+	c++ -c @item $flags$ -DNS_COMPILING_LIBRARY -std=c++11 -o @out
 
 build_file libns2$so deps $obj.files
-	c++ @in -o @out $ldflags$ $flags$
+	c++ @in -o @out $ldflags$ $flags$ -DNS_COMPILING_LIBRARY
 
 build_file libns2$a deps $obj.files
 	[L:R] ar rcs @out @in
 
-# ------------------------------------------------------------------------------
+build_file jsonc$exe autodeps $root$/src/jsonc.cpp libns2$a
+	c++ -std=c++98 $flags $root$/src/jsonc.cpp -L. -lns2 -o @out
 
+# ------------------------------------------------------------------------------
 # Install/Package library
 
 install_file libns2$so lib
@@ -36,7 +35,6 @@ install_file libns2$so lib
 install_dir $root$/include .
 
 # ------------------------------------------------------------------------------
-
 # Build tests
 
 set tests_flags = -O3 -g -Wall -L. -lns2 -I$root$/include \
@@ -71,7 +69,6 @@ phony tests_cpp11 deps $tests_cpp11.files
 phony tests deps tests_cpp98 tests_cpp03 tests_cpp11
 
 # ------------------------------------------------------------------------------
-
 # Build bin
 
 build_files examples_cpp11 foreach glob:$root$/examples/*.cpp \

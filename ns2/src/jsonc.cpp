@@ -120,6 +120,8 @@ static void tokenize(std::vector<token_t> *tokens_, std::istream *in_,
       HELPER("vector_double")
       HELPER("string")
       HELPER("vector_string")
+      HELPER("bool")
+      HELPER("vector_bool")
 
 #undef HELPER
 
@@ -252,7 +254,8 @@ static void parse_rec(tree_t *tree_, std::string *error_,
         continue;
       }
       if (tokens[i].text == "double" || tokens[i].text == "vector_double" ||
-          tokens[i].text == "string" || tokens[i].text == "vector_string") {
+          tokens[i].text == "string" || tokens[i].text == "vector_string" ||
+          tokens[i].text == "bool" || tokens[i].text == "vector_bool") {
         tree.append(keys, tokens[i], NULL, &error);
         if (error.size() > 0) {
           return;
@@ -261,8 +264,9 @@ static void parse_rec(tree_t *tree_, std::string *error_,
         expect = ComaEnd;
         continue;
       }
-      error = "expecting '{', 'double', 'vector_double', 'string' or "
-              "'vector_string' here " + tokens[i].cursor.to_string();
+      error = "expecting '{', 'double', 'vector_double', 'string', "
+              "'vector_string', 'bool' or 'vector_bool' here " +
+              tokens[i].cursor.to_string();
       return;
     case ComaEnd:
       if (tokens[i].text == ",") {
@@ -317,6 +321,10 @@ static std::string get_cpp_type(std::string const &type) {
     return "std::string";
   } else if (type == "vector_string") {
     return "std::vector<std::string>";
+  } else if (type == "bool") {
+    return "bool";
+  } else if (type == "vector_bool") {
+    return "std::vector<bool>";
   } else {
     abort(); // should never be reached
   }
@@ -389,6 +397,7 @@ static void dump_header(std::ostream *out_, int argc, char **argv) {
       << "#include <ns2.hpp>\n\n"
       << "#include <vector>\n"
       << "#include <string>\n"
+      << "#include <iomanip>\n"
       << "#include <istream>\n"
       << "#include <ostream>\n";
 }
@@ -465,12 +474,75 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
               "  // @: @\n"
               "  if (@.is_@_null) {\n"
               "    out << @ << \": null@\\n\";\n"
-              "  } else {\n"
-              "    out << @ << \": \" << @.@ << \"@\\n\";\n"
-              "  }\n\n",
+              "  } else {\n",
               key.text, entry.type.text, prefix, key.cpp_text,
-              stringify(indent_str + key.text), coma,
-              stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+              stringify(indent_str + key.text), coma);
+        if (entry.type.text == "string") {
+          print(&out, "    out << @ << \": \" << @.@ << \"@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+        } else if (entry.type.text == "vector_string") {
+          print(&out,
+                "    out << @ << \": [\\n\";\n"
+                "    std::vector<std::string> const &v = @.@;\n"
+                "    for (size_t i = 0; i < v.size(); i++) {\n"
+                "      out << \"@  \\\"\" << v[i] << \"\\\"\";\n"
+                "      if (i + 1 < v.size()) {\n"
+                "        out << \",\\n\";\n"
+                "      } else {\n"
+                "        out << \"\\n\";\n"
+                "      }\n"
+                "    }\n"
+                "    out << \"@]@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text,
+                indent_str, indent_str, coma);
+        } else if (entry.type.text == "double") {
+          print(&out,
+                "    out << @ << \": \"\n"
+                "        << std::setprecision(std::numeric_limits<\n"
+                "                             double>::digits10 + 1)\n"
+                "        << std::scientific << @.@ << \"@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+        } else if (entry.type.text == "vector_double") {
+          print(&out,
+                "    out << @ << \": [\\n\";\n"
+                "    std::vector<double> const &v = @.@;\n"
+                "    for (size_t i = 0; i < v.size(); i++) {\n"
+                "      out << \"@  \"\n"
+                "          << std::setprecision(std::numeric_limits<\n"
+                "                               double>::digits10 + 1)\n"
+                "          << std::scientific << v[i];\n"
+                "      if (i + 1 < v.size()) {\n"
+                "        out << \",\\n\";\n"
+                "      } else {\n"
+                "        out << \"\\n\";\n"
+                "      }\n"
+                "    }\n"
+                "    out << \"@]@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text,
+                indent_str, indent_str, coma);
+        } else if (entry.type.text == "bool") {
+          print(&out,
+                "    out << @ << \": \"\n"
+                "        << (@.@ ? \"true\" : \"false\") << \"@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+        } else if (entry.type.text == "vector_bool") {
+          print(&out,
+                "    out << @ << \": [\\n\";\n"
+                "    std::vector<bool> const &v = @.@;\n"
+                "    for (size_t i = 0; i < v.size(); i++) {\n"
+                "      out << \"@  \" <<\n"
+                "          << (v[i] ? \"true\" : \"false\");\n"
+                "      if (i + 1 < v.size()) {\n"
+                "        out << \",\\n\";\n"
+                "      } else {\n"
+                "        out << \"\\n\";\n"
+                "      }\n"
+                "    }\n"
+                "    out << \"@]@\\n\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text,
+                indent_str, indent_str, coma);
+        }
+        print(&out, "  }\n\n");
       }
     } else {
       for (size_t j = 0; j < entry.keys.size(); j++) {
@@ -509,6 +581,8 @@ struct key_desc_t {
     VectorString,
     Double,
     VectorDouble,
+    Bool,
+    VectorBool,
     Key
   } type;
 
@@ -532,6 +606,10 @@ struct key_desc_t {
       return std::string("number");
     case VectorDouble:
       return std::string("array of numbers");
+    case Bool:
+      return std::string("boolean");
+    case VectorBool:
+      return std::string("array of booleans");
     case Key:
       return std::string("key");
     }
@@ -566,6 +644,10 @@ static void list_ids(std::vector<key_desc_t> *ids_, maps_t *maps_,
           kd.type = key_desc_t::String;
         } else if (entry.type.text == "vector_string") {
           kd.type = key_desc_t::VectorString;
+        } else if (entry.type.text == "bool") {
+          kd.type = key_desc_t::Bool;
+        } else if (entry.type.text == "vector_bool") {
+          kd.type = key_desc_t::VectorBool;
         } else {
           abort(); // should never happen
         }
@@ -868,10 +950,56 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "  }\n\n");
 
   // implementation of new_bool
-  print(&out, "  bool new_boolean(ns2::cursor_t const &cursor, bool) {\n"
-              "    std::string msg(\"ERROR: unexpected boolean at \" +\n"
-              "                    cursor.to_string());\n"
-              "    NS2_THROW(std::runtime_error, msg.c_str());\n"
+  print(&out, "  bool new_boolean(ns2::cursor_t const &cursor, bool b) {\n"
+              "    switch(state) {\n");
+  for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
+    print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
+  }
+  print(&out, "      {\n"
+              "        std::string msg(\"ERROR: unexpected boolean at \" +\n"
+              "                        cursor.to_string());\n"
+              "        NS2_THROW(std::runtime_error, msg.c_str());\n"
+              "        return false;\n"
+              "      }\n");
+  for (size_t i = 0; i < kds.size(); i++) {
+    out << "    case " << kds[i].enum_id << ":\n";
+    switch(kds[i].type) {
+    case key_desc_t::Key:
+      abort(); // should never happen
+      break;
+    case key_desc_t::VectorDouble:
+    case key_desc_t::Double:
+    case key_desc_t::VectorString:
+    case key_desc_t::String:
+      print(&out,
+            "      throw_wrong_type(\"@\", @, cursor);\n"
+            "      return false;\n",
+            kds[i].type_to_string(), kds[i].string_id);
+      break;
+    case key_desc_t::Bool:
+      print(&out,
+            "      buf->%.@ = b;\n"
+            "      buf->%.is_@_null = false;\n"
+            "      state = nested_maps.back();\n"
+            "      return true;\n",
+            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
+            kds[i].cpp_text);
+      break;
+    case key_desc_t::VectorBool:
+      print(&out,
+            "      if (!inside_array) {\n"
+            "        throw_wrong_type(\"@\", @, cursor);\n"
+            "        return false;\n"
+            "      }\n"
+            "      state = nested_maps.back();\n"
+            "      vector_string_buf.push_back(b);\n"
+            "      return true;\n",
+            kds[i].type_to_string(), kds[i].string_id);
+      break;
+    }
+  }
+  print(&out, "    }\n"
+              "    return true; // silence warning\n"
               "  }\n\n");
 
   // implementation of new_string
@@ -889,13 +1017,20 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "      }\n");
   for (size_t i = 0; i < kds.size(); i++) {
     out << "    case " << kds[i].enum_id << ":\n";
-    if (kds[i].type == key_desc_t::VectorDouble ||
-        kds[i].type == key_desc_t::Double) {
+    switch(kds[i].type) {
+    case key_desc_t::Key:
+      abort(); // should never happen
+      break;
+    case key_desc_t::VectorDouble:
+    case key_desc_t::Double:
+    case key_desc_t::VectorBool:
+    case key_desc_t::Bool:
       print(&out,
             "      throw_wrong_type(\"@\", @, cursor);\n"
             "      return false;\n",
             kds[i].type_to_string(), kds[i].string_id);
-    } else if (kds[i].type == key_desc_t::String) {
+      break;
+    case key_desc_t::String:
       print(&out,
             "      buf->%.@ = s;\n"
             "      buf->%.is_@_null = false;\n"
@@ -903,7 +1038,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "      return true;\n",
             kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
             kds[i].cpp_text);
-    } else if (kds[i].type == key_desc_t::VectorString) {
+      break;
+    case key_desc_t::VectorString:
       print(&out,
             "      if (!inside_array) {\n"
             "        throw_wrong_type(\"@\", @, cursor);\n"
@@ -913,6 +1049,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "      vector_string_buf.push_back(s);\n"
             "      return true;\n",
             kds[i].type_to_string(), kds[i].string_id);
+      break;
     }
   }
   print(&out, "    }\n"
@@ -933,13 +1070,20 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "      }\n");
   for (size_t i = 0; i < kds.size(); i++) {
     out << "    case " << kds[i].enum_id << ":\n";
-    if (kds[i].type == key_desc_t::VectorString ||
-        kds[i].type == key_desc_t::String) {
+    switch(kds[i].type) {
+    case key_desc_t::Key:
+      abort(); // should never happen
+      break;
+    case key_desc_t::VectorString:
+    case key_desc_t::String:
+    case key_desc_t::VectorBool:
+    case key_desc_t::Bool:
       print(&out,
             "      throw_wrong_type(\"@\", @, cursor);\n"
             "      return false;\n",
             kds[i].type_to_string(), kds[i].string_id);
-    } else if (kds[i].type == key_desc_t::Double) {
+      break;
+    case key_desc_t::Double:
       print(&out,
             "      buf->%.@ = d;\n"
             "      buf->%.is_@_null = false;\n"
@@ -947,7 +1091,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "      return true;\n",
             kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
             kds[i].cpp_text);
-    } else if (kds[i].type == key_desc_t::VectorDouble) {
+      break;
+    case key_desc_t::VectorDouble:
       print(&out,
             "      if (!inside_array) {\n"
             "        throw_wrong_type(\"@\", @, cursor);\n"
@@ -957,6 +1102,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "      vector_double_buf.push_back(d);\n"
             "      return true;\n",
             kds[i].type_to_string(), kds[i].string_id);
+      break;
     }
   }
   print(&out, "    }\n"

@@ -709,7 +709,13 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   print(&out,
         "struct @ : public ns2::json_parser_t {\n\n"
         "  @_t *buf;\n\n"
-        "  bool inside_array;\n\n",
+        "  bool *is_null_ptr;\n"
+        "  std::string *string_ptr;\n"
+        "  std::vector<std::string> *vector_string_ptr;\n"
+        "  double *double_ptr;\n"
+        "  std::vector<double> *vector_double_ptr;\n"
+        "  bool *bool_ptr;\n"
+        "  std::vector<bool> *vector_bool_ptr;\n",
         class_name, struct_name);
 
   // enum
@@ -717,42 +723,37 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    waiting_for_a_key_in_@,\n", it->first);
   }
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    @@\n", kds[i].enum_id,
-          std::string(i + 1 < kds.size() ? "," : ""));
-  }
-  print(&out, "  } state;\n\n"
+  print(&out, "    waiting_for_double,\n"
+              "    waiting_for_vector_double,\n"
+              "    waiting_for_string,\n"
+              "    waiting_for_vector_string,\n"
+              "    waiting_for_bool,\n"
+              "    waiting_for_vector_bool\n"
+              "  } state;\n\n"
               "  std::vector<state_t> nested_maps;\n\n");
 
-  // bools and cursors
+  // cursors
   for (size_t i = 0; i < kds.size(); i++) {
-    print(&out,
-          "  bool @;\n"
-          "  ns2::cursor_t @;\n\n",
-          kds[i].bool_id, kds[i].cursor_id);
+    print(&out, "  ns2::cursor_t @;\n", kds[i].cursor_id);
   }
 
   // ctor
   print(&out, "  @(@_t *buf_) {\n", class_name, struct_name);
   for (size_t i = 0; i < kds.size(); i++) {
-    print(&out,
-          "    @ = false;\n"
-          "    buf_->%.is_@_given = false;\n",
-          kds[i].bool_id, kds[i].struct_id, kds[i].cpp_text);
+    print(&out, "    buf_->%.is_@_given = false;\n", kds[i].struct_id,
+          kds[i].cpp_text);
   }
   print(&out, "    state = waiting_for_a_key_in_root;\n"
               "    nested_maps.push_back(waiting_for_a_key_in_root);\n"
               "    buf = buf_;\n"
-              "    inside_array = false;\n"
               "  }\n\n");
 
   // implementation of exception for wrong type
   print(&out, "  void throw_wrong_type(std::string const &expected_type,\n"
-              "                        std::string const &key,\n"
               "                        ns2::cursor_t const &cursor) const {\n"
               "    std::string msg(\"ERROR: expecting value of type\" +\n"
-              "                    expected_type + \" for key \" + key +\n"
-              "                    \" at \" + cursor.to_string());\n"
+              "                    expected_type + \" at \" +\n"
+              "                    cursor.to_string());\n"
               "    NS2_THROW(std::runtime_error, msg.c_str());\n"
               "  }\n\n");
 
@@ -762,15 +763,26 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
-  print(&out, "      return true; // nothing to do\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out,
-          "    case @:\n"
-          "      throw_wrong_type(\"@\", @, cursor);\n"
-          "      return false;\n",
-          kds[i].enum_id, kds[i].type_to_string(), kds[i].string_id);
-  }
-  print(&out, "    }\n"
+  print(&out, "      return true; // nothing to do\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"number\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_double:\n"
+              "      throw_wrong_type(\"vector of numbers\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_string:\n"
+              "      throw_wrong_type(\"vector of strings\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_bool:\n"
+              "      throw_wrong_type(\"vector of booleans\", cursor);\n"
+              "      return false;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
@@ -779,38 +791,34 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "    switch(state) {\n");
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
-    //for (size_t i = 0; i < it->second.size(); i++) {
-    //  key_desc_t const &kd = it->second[i];
-    //  if (kd.type == key_desc_t::Key) {
-    //    continue;
-    //  }
-    //  print(&out,
-    //        "      if (!@) {\n"
-    //        "        std::string msg(\"key \"@\" not provided\");\n"
-    //        "        NS2_THROW(std::runtime_error, msg.c_str());\n"
-    //        "        return false;\n"
-    //        "      }\n",
-    //        kd.bool_id, kd.string_id);
-    //}
   }
   print(&out, "      nested_maps.pop_back();\n"
               "      state = nested_maps.back();\n"
-              "      return true;\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out,
-          "    case @:\n"
-          "      throw_wrong_type(\"@\", @, cursor);\n"
-          "      return false;\n",
-          kds[i].enum_id, kds[i].type_to_string(), kds[i].string_id);
-  }
-  print(&out, "    }\n"
+              "      return true;\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"number\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_double:\n"
+              "      throw_wrong_type(\"vector of numbers\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_string:\n"
+              "      throw_wrong_type(\"vector of strings\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_bool:\n"
+              "      throw_wrong_type(\"vector of booleans\", cursor);\n"
+              "      return false;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
   // implementation of begin_array
-  print(&out, "  std::vector<double> vector_double_buf;\n"
-              "  std::vector<std::string> vector_string_buf;\n\n"
-              "  bool begin_array(ns2::cursor_t const &cursor) {\n"
+  print(&out, "  bool begin_array(ns2::cursor_t const &cursor) {\n"
               "    switch(state) {\n");
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
@@ -820,21 +828,21 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "                      cursor.to_string());\n"
               "      NS2_THROW(std::runtime_error, msg.c_str());\n"
               "      return false;\n"
-              "    }\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    case @:\n", kds[i].enum_id);
-    if (kds[i].type == key_desc_t::VectorDouble ||
-        kds[i].type == key_desc_t::VectorString) {
-      print(&out, "      inside_array = true;\n"
-                  "      return true; // nothing to do\n");
-    } else {
-      print(&out,
-            "      throw_wrong_type(\"@\", @, cursor);\n"
-            "      return false;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-    }
-  }
-  print(&out, "    }\n"
+              "    }\n"
+              "    case waiting_for_vector_bool:\n"
+              "    case waiting_for_vector_string:\n"
+              "    case waiting_for_vector_double:\n"
+              "      return true;\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"double\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
@@ -849,35 +857,22 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "                      cursor.to_string());\n"
               "      NS2_THROW(std::runtime_error, msg.c_str());\n"
               "      return false;\n"
-              "    }\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    case @:\n", kds[i].enum_id);
-    if (kds[i].type == key_desc_t::VectorDouble) {
-      print(&out,
-            "      buf->%.@ = vector_double_buf;\n"
-            "      buf->%.is_@_null = false;\n"
-            "      inside_array = false;\n"
-            "      state = nested_maps.back();\n"
-            "      return true;\n",
-            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
-            kds[i].cpp_text);
-    } else if (kds[i].type == key_desc_t::VectorString) {
-      print(&out,
-            "      buf->%.@ = vector_string_buf;\n"
-            "      buf->%.is_@_null = false;\n"
-            "      inside_array = false;\n"
-            "      state = nested_maps.back();\n"
-            "      return true;\n",
-            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
-            kds[i].cpp_text);
-    } else {
-      print(&out,
-            "      throw_wrong_type(\"@\", @, cursor);\n"
-            "      return false;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-    }
-  }
-  print(&out, "    }\n"
+              "    }\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"number\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_bool:\n"
+              "    case waiting_for_vector_string:\n"
+              "    case waiting_for_vector_double:\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
@@ -901,22 +896,56 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               kd.enum_id);
       } else {
         print(&out,
-              "        if (@) {\n"
+              "        if (buf->%.is_@_given) {\n"
               "          std::string msg(\"ERROR: key \" @ \n"
               "                          \" already given at \" +\n"
               "                          cursor.to_string());\n"
               "          NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        }\n"
-              "        @ = true;\n"
               "        buf->%.is_@_given = true;\n"
               "        @ = cursor;\n"
-              "        state = @;\n",
-              kd.bool_id, kd.string_id, kd.bool_id, kd.struct_id, kd.cpp_text,
-              kd.cursor_id, kd.enum_id);
-        if (kd.type == key_desc_t::VectorDouble) {
-          print(&out, "        vector_double_buf.clear();\n");
-        } else if (kd.type == key_desc_t::VectorString) {
-          print(&out, "        vector_string_buf.clear();\n");
+              "        is_null_ptr = &(buf->%.@);\n",
+              kd.struct_id, kd.cpp_text, kd.string_id, kd.struct_id,
+              kd.cpp_text, kd.cursor_id, kd.struct_id, kd.cpp_text);
+        switch(kd.type) {
+        case key_desc_t::Double:
+          print(&out,
+                "        state = waiting_for_double;\n"
+                "        double_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::VectorDouble:
+          print(&out,
+                "        state = waiting_for_vector_double;\n"
+                "        vector_double_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::String:
+          print(&out,
+                "        state = waiting_for_string;\n"
+                "        string_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::VectorString:
+          print(&out,
+                "        state = waiting_for_vector_string;\n"
+                "        vector_string_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::Bool:
+          print(&out,
+                "        state = waiting_for_bool;\n"
+                "        bool_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::VectorBool:
+          print(&out,
+                "        state = waiting_for_vector_bool;\n"
+                "        vector_bool_ptr = &(buf->%.@);\n",
+                kd.struct_id, kd.cpp_text);
+          break;
+        case key_desc_t::Key:
+          abort(); // should never happen
         }
         print(&out, "        return true;\n");
       }
@@ -929,29 +958,10 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
                 "        return false;\n"
                 "      }\n");
   }
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    case @:\n", kds[i].enum_id);
-  }
-  print(&out, "      {\n"
-              "        std::string msg(\"unexpected key at \" +\n"
-              "                        cursor.to_string());\n"
-              "        NS2_THROW(std::runtime_error, msg.c_str());\n"
-              "        return false;\n"
-              "      }\n"
-              "    }\n"
-              "    return true; // silence warning\n"
-              "  }\n\n");
 
   // implementation of new_null
   print(&out, "  bool new_null(ns2::cursor_t const &cursor) {\n"
               "    switch(state) {\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    case @:\n"
-                "      buf->%.is_@_null = true;\n"
-                "      state = nested_maps.back();\n"
-                "      return true;\n",
-                kds[i].enum_id, kds[i].struct_id, kds[i].cpp_text);
-  }
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
@@ -961,6 +971,15 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
               "      }\n"
+              "    case waiting_for_double:\n"
+              "    case waiting_for_string:\n"
+              "    case waiting_for_bool:\n"
+              "    case waiting_for_vector_bool:\n"
+              "    case waiting_for_vector_string:\n"
+              "    case waiting_for_vector_double:\n"
+              "      *is_null_ptr = true;\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
               "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
@@ -976,44 +995,27 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "                        cursor.to_string());\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
-              "      }\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    out << "    case " << kds[i].enum_id << ":\n";
-    switch(kds[i].type) {
-    case key_desc_t::Key:
-      abort(); // should never happen
-      break;
-    case key_desc_t::VectorDouble:
-    case key_desc_t::Double:
-    case key_desc_t::VectorString:
-    case key_desc_t::String:
-      print(&out,
-            "      throw_wrong_type(\"@\", @, cursor);\n"
-            "      return false;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    case key_desc_t::Bool:
-      print(&out,
-            "      buf->%.@ = b;\n"
-            "      buf->%.is_@_null = false;\n"
-            "      state = nested_maps.back();\n"
-            "      return true;\n",
-            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
-            kds[i].cpp_text);
-      break;
-    case key_desc_t::VectorBool:
-      print(&out,
-            "      if (!inside_array) {\n"
-            "        throw_wrong_type(\"@\", @, cursor);\n"
-            "        return false;\n"
-            "      }\n"
-            "      vector_string_buf.push_back(b);\n"
-            "      return true;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    }
-  }
-  print(&out, "    }\n"
+              "      }\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"number\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_double:\n"
+              "      throw_wrong_type(\"vector of numbers\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_string:\n"
+              "      throw_wrong_type(\"vector of strings\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      *bool_ptr = b;\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
+              "    case waiting_for_vector_bool:\n"
+              "      vector_bool_ptr->push_back(b);\n"
+              "      return true;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
@@ -1029,44 +1031,27 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "                        cursor.to_string());\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
-              "      }\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    out << "    case " << kds[i].enum_id << ":\n";
-    switch(kds[i].type) {
-    case key_desc_t::Key:
-      abort(); // should never happen
-      break;
-    case key_desc_t::VectorDouble:
-    case key_desc_t::Double:
-    case key_desc_t::VectorBool:
-    case key_desc_t::Bool:
-      print(&out,
-            "      throw_wrong_type(\"@\", @, cursor);\n"
-            "      return false;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    case key_desc_t::String:
-      print(&out,
-            "      buf->%.@ = s;\n"
-            "      buf->%.is_@_null = false;\n"
-            "      state = nested_maps.back();\n"
-            "      return true;\n",
-            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
-            kds[i].cpp_text);
-      break;
-    case key_desc_t::VectorString:
-      print(&out,
-            "      if (!inside_array) {\n"
-            "        throw_wrong_type(\"@\", @, cursor);\n"
-            "        return false;\n"
-            "      }\n"
-            "      vector_string_buf.push_back(s);\n"
-            "      return true;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    }
-  }
-  print(&out, "    }\n"
+              "      }\n"
+              "    case waiting_for_double:\n"
+              "      throw_wrong_type(\"number\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_double:\n"
+              "      throw_wrong_type(\"vector of numbers\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_bool:\n"
+              "      throw_wrong_type(\"vector of booleans\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_string:\n"
+              "      *string_ptr = s;\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
+              "    case waiting_for_vector_string:\n"
+              "      vector_string_ptr->push_back(s);\n"
+              "      return true;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 
@@ -1081,44 +1066,27 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "                        cursor.to_string());\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
-              "      }\n");
-  for (size_t i = 0; i < kds.size(); i++) {
-    out << "    case " << kds[i].enum_id << ":\n";
-    switch(kds[i].type) {
-    case key_desc_t::Key:
-      abort(); // should never happen
-      break;
-    case key_desc_t::VectorString:
-    case key_desc_t::String:
-    case key_desc_t::VectorBool:
-    case key_desc_t::Bool:
-      print(&out,
-            "      throw_wrong_type(\"@\", @, cursor);\n"
-            "      return false;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    case key_desc_t::Double:
-      print(&out,
-            "      buf->%.@ = d;\n"
-            "      buf->%.is_@_null = false;\n"
-            "      state = nested_maps.back();\n"
-            "      return true;\n",
-            kds[i].struct_id, kds[i].cpp_text, kds[i].struct_id,
-            kds[i].cpp_text);
-      break;
-    case key_desc_t::VectorDouble:
-      print(&out,
-            "      if (!inside_array) {\n"
-            "        throw_wrong_type(\"@\", @, cursor);\n"
-            "        return false;\n"
-            "      }\n"
-            "      vector_double_buf.push_back(d);\n"
-            "      return true;\n",
-            kds[i].type_to_string(), kds[i].string_id);
-      break;
-    }
-  }
-  print(&out, "    }\n"
+              "      }\n"
+              "    case waiting_for_string:\n"
+              "      throw_wrong_type(\"string\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_string:\n"
+              "      throw_wrong_type(\"vector of strings\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_bool:\n"
+              "      throw_wrong_type(\"boolean\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_vector_bool:\n"
+              "      throw_wrong_type(\"vector of booleans\", cursor);\n"
+              "      return false;\n"
+              "    case waiting_for_double:\n"
+              "      *double_ptr = d;\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
+              "    case waiting_for_vector_double:\n"
+              "      vector_double_ptr->push_back(d);\n"
+              "      return true;\n"
+              "    }\n"
               "    return true; // silence warning\n"
               "  }\n\n");
 

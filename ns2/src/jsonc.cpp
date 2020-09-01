@@ -554,7 +554,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
         print(&out,
               "  // submap @\n"
               "  out << @ \": \";\n",
-              key.text, indent_str, stringify(indent_str + key.text));
+              key.text, stringify(indent_str + key.text));
         dump_json_write_rec(&out, *entry.subtree, prefix + "." + key.cpp_text,
                             indent + indent_step, indent_step);
         if (j + 1 < entry.keys.size()) {

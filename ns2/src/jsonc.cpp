@@ -947,7 +947,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
         case key_desc_t::Key:
           abort(); // should never happen
         }
-        print(&out, "        return true;\n");
+        print(&out, "        }\n");
       }
       print(&out, "      } else ");
     }

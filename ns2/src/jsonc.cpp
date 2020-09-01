@@ -417,9 +417,11 @@ static void dump_json_struct(std::ostream *out_, tree_t const &tree,
         print(&out,
               "@  // @: @\n"
               "@  bool is_@_null;\n"
+              "@  bool is_@_given;\n"
               "@  @ @;\n\n",
               indent, key.text, entry.type.text, indent, key.cpp_text, indent,
-              get_cpp_type(entry.type.text), key.cpp_text);
+              key.cpp_text, indent, get_cpp_type(entry.type.text),
+              key.cpp_text);
       }
     } else {
       std::string type("map" + ns2::to_string(i));
@@ -472,77 +474,79 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
         std::string indent_str(indent + indent_step, ' ');
         print(&out,
               "  // @: @\n"
-              "  if (@.is_@_null) {\n"
-              "    out << @ << \": null@\\n\";\n"
-              "  } else {\n",
-              key.text, entry.type.text, prefix, key.cpp_text,
-              stringify(indent_str + key.text), coma);
+              "  if (@.is_@_given) {\n"
+              "    if (@.is_@_null) {\n"
+              "      out << @ << \": null@\\n\";\n"
+              "    } else {\n",
+              key.text, entry.type.text, prefix, key.cpp_text, prefix,
+              key.cpp_text, stringify(indent_str + key.text), coma);
         if (entry.type.text == "string") {
-          print(&out, "    out << @ << \": \" << @.@ << \"@\\n\";\n",
+          print(&out, "      out << @ << \": \" << @.@ << \"@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text, coma);
         } else if (entry.type.text == "vector_string") {
           print(&out,
-                "    out << @ << \": [\\n\";\n"
-                "    std::vector<std::string> const &v = @.@;\n"
-                "    for (size_t i = 0; i < v.size(); i++) {\n"
-                "      out << \"@  \\\"\" << v[i] << \"\\\"\";\n"
-                "      if (i + 1 < v.size()) {\n"
-                "        out << \",\\n\";\n"
-                "      } else {\n"
-                "        out << \"\\n\";\n"
+                "      out << @ << \": [\\n\";\n"
+                "      std::vector<std::string> const &v = @.@;\n"
+                "      for (size_t i = 0; i < v.size(); i++) {\n"
+                "        out << \"@  \\\"\" << v[i] << \"\\\"\";\n"
+                "        if (i + 1 < v.size()) {\n"
+                "          out << \",\\n\";\n"
+                "        } else {\n"
+                "          out << \"\\n\";\n"
+                "        }\n"
                 "      }\n"
-                "    }\n"
-                "    out << \"@]@\\n\";\n",
+                "      out << \"@]@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
                 indent_str, indent_str, coma);
         } else if (entry.type.text == "double") {
           print(&out,
-                "    out << @ << \": \"\n"
-                "        << std::setprecision(std::numeric_limits<\n"
-                "                             double>::digits10 + 1)\n"
-                "        << std::scientific << @.@ << \"@\\n\";\n",
+                "      out << @ << \": \"\n"
+                "          << std::setprecision(std::numeric_limits<\n"
+                "                               double>::digits10 + 1)\n"
+                "          << std::scientific << @.@ << \"@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text, coma);
         } else if (entry.type.text == "vector_double") {
           print(&out,
-                "    out << @ << \": [\\n\";\n"
-                "    std::vector<double> const &v = @.@;\n"
-                "    for (size_t i = 0; i < v.size(); i++) {\n"
-                "      out << \"@  \"\n"
-                "          << std::setprecision(std::numeric_limits<\n"
-                "                               double>::digits10 + 1)\n"
-                "          << std::scientific << v[i];\n"
-                "      if (i + 1 < v.size()) {\n"
-                "        out << \",\\n\";\n"
-                "      } else {\n"
-                "        out << \"\\n\";\n"
+                "      out << @ << \": [\\n\";\n"
+                "      std::vector<double> const &v = @.@;\n"
+                "      for (size_t i = 0; i < v.size(); i++) {\n"
+                "        out << \"@  \"\n"
+                "            << std::setprecision(std::numeric_limits<\n"
+                "                                 double>::digits10 + 1)\n"
+                "            << std::scientific << v[i];\n"
+                "        if (i + 1 < v.size()) {\n"
+                "          out << \",\\n\";\n"
+                "        } else {\n"
+                "          out << \"\\n\";\n"
+                "        }\n"
                 "      }\n"
-                "    }\n"
-                "    out << \"@]@\\n\";\n",
+                "      out << \"@]@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
                 indent_str, indent_str, coma);
         } else if (entry.type.text == "bool") {
           print(&out,
-                "    out << @ << \": \"\n"
-                "        << (@.@ ? \"true\" : \"false\") << \"@\\n\";\n",
+                "      out << @ << \": \"\n"
+                "          << (@.@ ? \"true\" : \"false\") << \"@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text, coma);
         } else if (entry.type.text == "vector_bool") {
           print(&out,
-                "    out << @ << \": [\\n\";\n"
-                "    std::vector<bool> const &v = @.@;\n"
-                "    for (size_t i = 0; i < v.size(); i++) {\n"
-                "      out << \"@  \" <<\n"
-                "          << (v[i] ? \"true\" : \"false\");\n"
-                "      if (i + 1 < v.size()) {\n"
-                "        out << \",\\n\";\n"
-                "      } else {\n"
-                "        out << \"\\n\";\n"
+                "      out << @ << \": [\\n\";\n"
+                "      std::vector<bool> const &v = @.@;\n"
+                "      for (size_t i = 0; i < v.size(); i++) {\n"
+                "        out << \"@  \" <<\n"
+                "            << (v[i] ? \"true\" : \"false\");\n"
+                "        if (i + 1 < v.size()) {\n"
+                "          out << \",\\n\";\n"
+                "        } else {\n"
+                "          out << \"\\n\";\n"
+                "        }\n"
                 "      }\n"
-                "    }\n"
-                "    out << \"@]@\\n\";\n",
+                "      out << \"@]@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
                 indent_str, indent_str, coma);
         }
-        print(&out, "  }\n\n");
+        print(&out, "    }\n"
+                    "  }\n\n");
       }
     } else {
       for (size_t j = 0; j < entry.keys.size(); j++) {
@@ -724,7 +728,10 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   // ctor
   print(&out, "  @(@_t *buf_) {\n", class_name, struct_name);
   for (size_t i = 0; i < kds.size(); i++) {
-    print(&out, "    @ = false;\n", kds[i].bool_id);
+    print(&out,
+          "    @ = false;\n"
+          "    buf->%.is_@_given = false;\n",
+          kds[i].bool_id, kds[i].struct_id, kds[i].cpp_text);
   }
   print(&out, "    state = waiting_for_a_key_in_root;\n"
               "    nested_maps.push_back(waiting_for_a_key_in_root);\n"
@@ -765,19 +772,19 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "    switch(state) {\n");
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
-    for (size_t i = 0; i < it->second.size(); i++) {
-      key_desc_t const &kd = it->second[i];
-      if (kd.type == key_desc_t::Key) {
-        continue;
-      }
-      print(&out,
-            "      if (!@) {\n"
-            "        std::string msg(\"key \"@\" not provided\");\n"
-            "        NS2_THROW(std::runtime_error, msg.c_str());\n"
-            "        return false;\n"
-            "      }\n",
-            kd.bool_id, kd.string_id);
-    }
+    //for (size_t i = 0; i < it->second.size(); i++) {
+    //  key_desc_t const &kd = it->second[i];
+    //  if (kd.type == key_desc_t::Key) {
+    //    continue;
+    //  }
+    //  print(&out,
+    //        "      if (!@) {\n"
+    //        "        std::string msg(\"key \"@\" not provided\");\n"
+    //        "        NS2_THROW(std::runtime_error, msg.c_str());\n"
+    //        "        return false;\n"
+    //        "      }\n",
+    //        kd.bool_id, kd.string_id);
+    //}
   }
   print(&out, "      nested_maps.pop_back();\n"
               "      state = nested_maps.back();\n"
@@ -894,9 +901,11 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "          NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        }\n"
               "        @ = true;\n"
+              "        buf->%.is_@_given = true;\n"
               "        @ = cursor;\n"
               "        state = @;\n",
-              kd.bool_id, kd.string_id, kd.bool_id, kd.cursor_id, kd.enum_id);
+              kd.bool_id, kd.string_id, kd.bool_id, kd.struct_id, kd.cpp_text,
+              kd.cursor_id, kd.enum_id);
         if (kd.type == key_desc_t::VectorDouble) {
           print(&out, "        vector_double_buf.clear();\n");
         } else if (kd.type == key_desc_t::VectorString) {

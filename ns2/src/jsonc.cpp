@@ -1148,8 +1148,12 @@ int main(int argc, char **argv) {
   std::string class_name("json_parser"), struct_name("json"),
       clang_format("clang-format"), filename;
 
+  bool header_only = false;
+
   for (int i = 1; i < argc; i++) {
-    if (!memcmp(argv[i], "--class-name=", 13)) {
+    if (!strcmp(argv[i], "--header-only")) {
+      header_only = true;
+    } else if (!memcmp(argv[i], "--class-name=", 13)) {
       class_name = argv[i] + 13;
       continue;
     } else if (!memcmp(argv[i], "--struct-name=", 14)) {
@@ -1197,9 +1201,11 @@ int main(int argc, char **argv) {
   dump_sep(&std::cout);
   dump_json_struct(&std::cout, tree, struct_name);
   dump_sep(&std::cout);
-  dump_json_write(&std::cout, tree, struct_name, 2);
-  dump_sep(&std::cout);
-  dump_json_read(&std::cout, tree, class_name, struct_name);
+  if (!header_only) {
+    dump_json_write(&std::cout, tree, struct_name, 2);
+    dump_sep(&std::cout);
+    dump_json_read(&std::cout, tree, class_name, struct_name);
+  }
 
   return 0;
 }

@@ -1000,7 +1000,6 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "        throw_wrong_type(\"@\", @, cursor);\n"
             "        return false;\n"
             "      }\n"
-            "      state = nested_maps.back();\n"
             "      vector_string_buf.push_back(b);\n"
             "      return true;\n",
             kds[i].type_to_string(), kds[i].string_id);
@@ -1054,7 +1053,6 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "        throw_wrong_type(\"@\", @, cursor);\n"
             "        return false;\n"
             "      }\n"
-            "      state = nested_maps.back();\n"
             "      vector_string_buf.push_back(s);\n"
             "      return true;\n",
             kds[i].type_to_string(), kds[i].string_id);
@@ -1107,7 +1105,6 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
             "        throw_wrong_type(\"@\", @, cursor);\n"
             "        return false;\n"
             "      }\n"
-            "      state = nested_maps.back();\n"
             "      vector_double_buf.push_back(d);\n"
             "      return true;\n",
             kds[i].type_to_string(), kds[i].string_id);

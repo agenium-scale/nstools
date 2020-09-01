@@ -407,7 +407,8 @@ static void dump_header(std::ostream *out_, int argc, char **argv) {
 
 static void dump_json_struct(std::ostream *out_, tree_t const &tree,
                              std::string const &struct_name,
-                             std::string const &indent = "") {
+                             std::string const &indent = "",
+                             size_t counter = 0) {
   std::ostream &out = *out_;
   out << indent << "struct " << struct_name << "_t {\n";
   for (size_t i = 0; i < tree.data.size(); i++) {
@@ -425,8 +426,9 @@ static void dump_json_struct(std::ostream *out_, tree_t const &tree,
               key.cpp_text);
       }
     } else {
-      std::string type("map" + ns2::to_string(i));
-      dump_json_struct(&out, *entry.subtree, type, indent + "  ");
+      std::string type("map" + ns2::to_string(counter) + "_" +
+                       ns2::to_string(i));
+      dump_json_struct(&out, *entry.subtree, type, indent + "  ", counter + 1);
       out << "\n\n";
       out << indent << "  " << type << "_t";
       for (size_t j = 0; j < entry.keys.size(); j++) {

@@ -461,7 +461,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                                 size_t indent_step) {
   std::ostream &out = *out_;
   std::string indent_str(indent, ' ');
-  out << "  out << \"" << indent_str << "{\\n\";\n\n";
+  out << "  out << \"" << "{\\n\";\n\n";
   for (size_t i = 0; i < tree.data.size(); i++) {
     tree_t::entry_t const &entry = tree.data[i];
     if (entry.subtree == NULL) {
@@ -551,7 +551,10 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
     } else {
       for (size_t j = 0; j < entry.keys.size(); j++) {
         token_t const &key = entry.keys[j];
-        out << "  // " << key.text << ": submap\n";
+        print(&out,
+              "  // submap @\n"
+              "  out << @ \": \";\n",
+              key.text, indent_str, stringify(indent_str + key.text));
         dump_json_write_rec(&out, *entry.subtree, prefix + "." + key.cpp_text,
                             indent + indent_step, indent_step);
         if (j + 1 < entry.keys.size()) {

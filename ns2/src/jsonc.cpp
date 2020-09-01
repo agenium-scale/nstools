@@ -879,7 +879,18 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   // implementation of new_key
   print(&out, "  bool new_key(ns2::cursor_t const &cursor,\n"
               "               std::string const &key) {\n"
-              "    switch(state) {\n");
+              "    switch(state) {\n"
+              "    case waiting_for_double:\n"
+              "    case waiting_for_bool:\n"
+              "    case waiting_for_string:\n"
+              "    case waiting_for_vector_double:\n"
+              "    case waiting_for_vector_string:\n"
+              "    case waiting_for_vector_bool: {\n"
+              "      std::string msg(\"unexpected key at \" +\n"
+              "                      cursor.to_string());\n"
+              "      return false;\n"
+              "    }\n"
+              );
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out,
           "    case waiting_for_a_key_in_@:\n"
@@ -947,7 +958,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
         case key_desc_t::Key:
           abort(); // should never happen
         }
-        print(&out, "        }\n");
+        print(&out, "        return true;\n");
       }
       print(&out, "      } else ");
     }
@@ -958,6 +969,9 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
                 "        return false;\n"
                 "      }\n");
   }
+  print(&out, "    }\n"
+              "  return true; // silence warning\n"
+              "  }\n\n");
 
   // implementation of new_null
   print(&out, "  bool new_null(ns2::cursor_t const &cursor) {\n"
@@ -1010,10 +1024,12 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "      return false;\n"
               "    case waiting_for_bool:\n"
               "      *bool_ptr = b;\n"
+              "      *is_null_ptr = false;\n"
               "      state = nested_maps.back();\n"
               "      return true;\n"
               "    case waiting_for_vector_bool:\n"
               "      vector_bool_ptr->push_back(b);\n"
+              "      *is_null_ptr = false;\n"
               "      return true;\n"
               "    }\n"
               "    return true; // silence warning\n"
@@ -1046,10 +1062,12 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "      return false;\n"
               "    case waiting_for_string:\n"
               "      *string_ptr = s;\n"
+              "      *is_null_ptr = false;\n"
               "      state = nested_maps.back();\n"
               "      return true;\n"
               "    case waiting_for_vector_string:\n"
               "      vector_string_ptr->push_back(s);\n"
+              "      *is_null_ptr = false;\n"
               "      return true;\n"
               "    }\n"
               "    return true; // silence warning\n"
@@ -1081,10 +1099,12 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "      return false;\n"
               "    case waiting_for_double:\n"
               "      *double_ptr = d;\n"
+              "      *is_null_ptr = false;\n"
               "      state = nested_maps.back();\n"
               "      return true;\n"
               "    case waiting_for_vector_double:\n"
               "      vector_double_ptr->push_back(d);\n"
+              "      *is_null_ptr = false;\n"
               "      return true;\n"
               "    }\n"
               "    return true; // silence warning\n"

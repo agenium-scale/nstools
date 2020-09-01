@@ -551,6 +551,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
     } else {
       for (size_t j = 0; j < entry.keys.size(); j++) {
         token_t const &key = entry.keys[j];
+        std::string indent_str(indent + indent_step, ' ');
         print(&out,
               "  // submap @\n"
               "  out << @ \": \";\n",

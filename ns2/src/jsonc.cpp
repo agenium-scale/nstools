@@ -395,6 +395,7 @@ static void dump_header(std::ostream *out_, int argc, char **argv) {
   }
   out << "\n\n"
       << "#include <ns2.hpp>\n\n"
+      << "#include <limits>\n"
       << "#include <vector>\n"
       << "#include <string>\n"
       << "#include <iomanip>\n"

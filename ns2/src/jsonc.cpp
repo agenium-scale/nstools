@@ -904,7 +904,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "        }\n"
               "        buf->%.is_@_given = true;\n"
               "        @ = cursor;\n"
-              "        is_null_ptr = &(buf->%.@);\n",
+              "        is_null_ptr = &(buf->%.is_@_null);\n",
               kd.struct_id, kd.cpp_text, kd.string_id, kd.struct_id,
               kd.cpp_text, kd.cursor_id, kd.struct_id, kd.cpp_text);
         switch(kd.type) {

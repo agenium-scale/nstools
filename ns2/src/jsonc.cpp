@@ -730,7 +730,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   for (size_t i = 0; i < kds.size(); i++) {
     print(&out,
           "    @ = false;\n"
-          "    buf->%.is_@_given = false;\n",
+          "    buf_->%.is_@_given = false;\n",
           kds[i].bool_id, kds[i].struct_id, kds[i].cpp_text);
   }
   print(&out, "    state = waiting_for_a_key_in_root;\n"

@@ -481,7 +481,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
               key.text, entry.type.text, prefix, key.cpp_text, prefix,
               key.cpp_text, stringify(indent_str + key.text), coma);
         if (entry.type.text == "string") {
-          print(&out, "      out << @ << \": \" << @.@ << \"@\\n\";\n",
+          print(&out, "      out << @ << \": \\\"\" << @.@ << \"\\\"@\\n\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text, coma);
         } else if (entry.type.text == "vector_string") {
           print(&out,

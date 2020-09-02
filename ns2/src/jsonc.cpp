@@ -461,31 +461,38 @@ static std::string stringify(std::string const &s) {
 
 static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                                 std::string const &prefix, size_t indent,
-                                size_t indent_step) {
+                                size_t indent_step, size_t counter) {
   std::ostream &out = *out_;
   std::string indent_str(indent, ' ');
-  out << "  out << \"" << "{\\n\";\n\n";
+  std::string bool_id("is_first_" + ns2::to_string(counter));
+  print(&out,
+        "  out << \"{\";\n\n"
+        "  {\n"
+        "  bool @ = true;\n",
+        bool_id);
   for (size_t i = 0; i < tree.data.size(); i++) {
     tree_t::entry_t const &entry = tree.data[i];
     if (entry.subtree == NULL) {
       for (size_t j = 0; j < entry.keys.size(); j++) {
-        std::string coma;
-        if (i + 1 < tree.data.size() || j + 1 < entry.keys.size()) {
-          coma = ",";
-        }
         token_t const &key = entry.keys[j];
         std::string indent_str(indent + indent_step, ' ');
         print(&out,
               "  // @: @\n"
               "  if (@.is_@_given) {\n"
+              "    if (!@) {\n"
+              "      out << \",\\n\";\n"
+              "    } else {\n"
+              "      out << \"\\n\";\n"
+              "      @ = false;\n"
+              "    }\n"
               "    if (@.is_@_null) {\n"
-              "      out << @ << \": null@\\n\";\n"
+              "      out << @ << \": null\";\n"
               "    } else {\n",
-              key.text, entry.type.text, prefix, key.cpp_text, prefix,
-              key.cpp_text, stringify(indent_str + key.text), coma);
+              key.text, entry.type.text, prefix, key.cpp_text, bool_id,
+              bool_id, prefix, key.cpp_text, stringify(indent_str + key.text));
         if (entry.type.text == "string") {
-          print(&out, "      out << @ << \": \\\"\" << @.@ << \"\\\"@\\n\";\n",
-                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+          print(&out, "      out << @ << \": \\\"\" << @.@ << \"\\\"\";\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text);
         } else if (entry.type.text == "vector_string") {
           print(&out,
                 "      out << @ << \": [\\n\";\n"
@@ -498,16 +505,16 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                 "          out << \"\\n\";\n"
                 "        }\n"
                 "      }\n"
-                "      out << \"@]@\\n\";\n",
+                "      out << \"@]\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
-                indent_str, indent_str, coma);
+                indent_str, indent_str);
         } else if (entry.type.text == "double") {
           print(&out,
                 "      out << @ << \": \"\n"
                 "          << std::setprecision(std::numeric_limits<\n"
                 "                               double>::digits10 + 1)\n"
-                "          << std::scientific << @.@ << \"@\\n\";\n",
-                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+                "          << std::scientific << @.@;\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text);
         } else if (entry.type.text == "vector_double") {
           print(&out,
                 "      out << @ << \": [\\n\";\n"
@@ -523,14 +530,14 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                 "          out << \"\\n\";\n"
                 "        }\n"
                 "      }\n"
-                "      out << \"@]@\\n\";\n",
+                "      out << \"@]\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
-                indent_str, indent_str, coma);
+                indent_str, indent_str);
         } else if (entry.type.text == "bool") {
           print(&out,
                 "      out << @ << \": \"\n"
-                "          << (@.@ ? \"true\" : \"false\") << \"@\\n\";\n",
-                stringify(indent_str + key.text), prefix, key.cpp_text, coma);
+                "          << (@.@ ? \"true\" : \"false\");\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text);
         } else if (entry.type.text == "vector_bool") {
           print(&out,
                 "      out << @ << \": [\\n\";\n"
@@ -544,9 +551,9 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                 "          out << \"\\n\";\n"
                 "        }\n"
                 "      }\n"
-                "      out << \"@]@\\n\";\n",
+                "      out << \"@]\";\n",
                 stringify(indent_str + key.text), prefix, key.cpp_text,
-                indent_str, indent_str, coma);
+                indent_str, indent_str);
         }
         print(&out, "    }\n"
                     "  }\n\n");
@@ -557,19 +564,23 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
         std::string indent_str(indent + indent_step, ' ');
         print(&out,
               "  // submap @\n"
+              "  if (!@) {\n"
+              "    out << \",\\n\";\n"
+              "  } else {\n"
+              "    out << \"\\n\";\n"
+              "    @ = false;\n"
+              "  }\n"
               "  out << @ \": \";\n",
-              key.text, stringify(indent_str + key.text));
+              key.text, bool_id, bool_id, stringify(indent_str + key.text));
         dump_json_write_rec(&out, *entry.subtree, prefix + "." + key.cpp_text,
-                            indent + indent_step, indent_step);
-        if (j + 1 < entry.keys.size()) {
-          out << "  out << \",\\n\";\n\n";
-        } else {
-          out << "  out << \"\\n\";\n\n";
-        }
+                            indent + indent_step, indent_step, counter + 1);
       }
     }
   }
-  out << "  out << \"" << indent_str << "}\";\n\n";
+  print(&out,
+        "  }\n"
+        "  out << \"\\n@}\";\n\n",
+        indent_str);
 }
 
 static void dump_json_write(std::ostream *out_, tree_t const &tree,
@@ -579,7 +590,7 @@ static void dump_json_write(std::ostream *out_, tree_t const &tree,
   out << "void write_" << struct_name << "(std::ostream *out_, " << struct_name
       << "_t const &" << struct_name << ") {\n"
       << "  std::ostream &out = *out_;\n";
-  dump_json_write_rec(&out, tree, struct_name, 0, indent_step);
+  dump_json_write_rec(&out, tree, struct_name, 0, indent_step, 0);
   out << "  out << \"\\n\";\n";
   out << "}";
 }
@@ -1195,15 +1206,15 @@ int main(int argc, char **argv) {
   dump_header(&std::cout, argc, argv);
   dump_sep(&std::cout);
   dump_json_struct(&std::cout, tree, struct_name);
+  dump_sep(&std::cout);
   if (header_only) {
     print(&std::cout,
           "extern void read_@(std::istream *, @_t *);\n"
-          "extern void write_@(std::ostream *, @_t const&);\n"
-          "#endif\n\n",
+          "extern void write_@(std::ostream *, @_t const&);\n\n"
+          "#endif\n",
           struct_name, struct_name, struct_name, struct_name);
   }
   if (!header_only) {
-    dump_sep(&std::cout);
     dump_json_write(&std::cout, tree, struct_name, 2);
     dump_sep(&std::cout);
     dump_json_read(&std::cout, tree, class_name, struct_name);

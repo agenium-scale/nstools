@@ -256,7 +256,7 @@ static double parse_double(status_t *status_, std::string const &line,
     } else if (is_end_of_token(line[i])) {
       status.error("expected digit, '+' or '-'");
     }
-    exponent_part = parse_long(&status, line, &i, "", AllowMinusOnly, false);
+    exponent_part = parse_long(&status, line, &i, "", AllowPlusMinus, false);
   }
 
   i--; // don't forget to go back to the last char part of the number

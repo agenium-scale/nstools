@@ -762,7 +762,7 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
   // implementation of exception for wrong type
   print(&out, "  void throw_wrong_type(std::string const &expected_type,\n"
               "                        ns2::cursor_t const &cursor) const {\n"
-              "    std::string msg(\"ERROR: expecting value of type\" +\n"
+              "    std::string msg(\"ERROR: expecting value of type \" +\n"
               "                    expected_type + \" at \" +\n"
               "                    cursor.to_string());\n"
               "    NS2_THROW(std::runtime_error, msg.c_str());\n"
@@ -985,17 +985,14 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "  }\n\n");
 
   // implementation of new_null
-  print(&out, "  bool new_null(ns2::cursor_t const &cursor) {\n"
+  print(&out, "  bool new_null(ns2::cursor_t const &) {\n"
               "    switch(state) {\n");
   for (maps_t::const_iterator it = maps.begin(); it != maps.end(); ++it) {
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
-  print(&out, "      {\n"
-              "        std::string msg(\"ERROR: unexpected null at\" +\n"
-              "                        cursor.to_string());\n"
-              "        NS2_THROW(std::runtime_error, msg.c_str());\n"
-              "        return false;\n"
-              "      }\n"
+  print(&out, "      nested_maps.pop_back();\n"
+              "      state = nested_maps.back();\n"
+              "      return true;\n"
               "    case waiting_for_double:\n"
               "    case waiting_for_string:\n"
               "    case waiting_for_bool:\n"

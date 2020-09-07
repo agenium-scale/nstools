@@ -24,7 +24,7 @@ build_file libns2$a deps $obj.files
 	ar rcs @out @in
 
 build_file jsonc$exe autodeps $root$/src/jsonc.cpp libns2$a
-	c++ -std=c++98 $flags $root$/src/jsonc.cpp -L. -lns2 -o @out
+	c++ -std=c++98 $flags @in -o @out
 
 # ------------------------------------------------------------------------------
 # Install/Package library

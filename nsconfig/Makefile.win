@@ -25,9 +25,9 @@ OFLAGS       = /Ox
 CXX_FLAGS    = $(OFLAGS) /W3 /EHsc /D_CRT_SECURE_NO_WARNINGS -I..\ns2\include \
                /DNS_NO_DLLSPEC
 LD_FLAGS     = Shlwapi.lib Dbghelp.lib
-NS2_SRC      = ..\ns2\src\string.cpp ..\ns2\src\fs.cpp ..\ns2\src\process.cpp \
-               ..\ns2\src\backtrace.cpp ..\ns2\src\exception.cpp \
-               ..\ns2\src\levenshtein.cpp
+NS2_SRC      = ..\ns2\lib\string.cpp ..\ns2\lib\fs.cpp ..\ns2\lib\process.cpp \
+               ..\ns2\lib\backtrace.cpp ..\ns2\lib\exception.cpp \
+               ..\ns2\lib\levenshtein.cpp
 NSCONFIG_SRC = backend_ninja.cpp \
                backend_make.cpp \
                compiler.cpp \

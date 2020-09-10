@@ -8,25 +8,28 @@ set root  = @source_dir
 
 # Compiler flags
 set flags = -Wall -fPIC -O3 -g -I$root$/include
-[L] set ldflags = -shared
-[W] set ldflags = -shared -l:Shlwapi.lib -l:Dbghelp.lib
+[L] set ldflags =
+[W] set ldflags = -l:Shlwapi.lib -l:Dbghelp.lib
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Build library
 
-build_files obj foreach glob:$root$/lib/*.cpp as %r$o deps @item
-	c++ -c @item $flags$ -DNS_COMPILING_LIBRARY -std=c++11 -o @out
+build_files dy_obj foreach glob:$root$/lib/*.cpp as dy_%r$o deps @item
+	c++ -c @item $flags -DNS_COMPILING_LIBRARY -std=c++11 -o @out
 
-build_file libns2$so deps $obj.files
-	c++ @in -o @out $ldflags$ $flags$ -DNS_COMPILING_LIBRARY
+build_file libns2$so deps $dy_obj.files
+	c++ @in -o @out -shared $ldflags $flags
 
-build_file libns2$a deps $obj.files
+build_files static_obj foreach glob:$root$/lib/*.cpp as static_%r$o deps @item
+	c++ -c @item $flags -DNS_NO_DLLSPEC -std=c++11 -o @out
+
+build_file libstatic_ns2$a deps $static_obj.files
 	ar rcs @out @in
 
-build_file jsonc$exe autodeps $root$/src/jsonc.cpp libns2$a
-	c++ -std=c++98 $flags @in -o @out
+build_file jsonc$exe autodeps $root$/src/jsonc.cpp libstatic_ns2$a
+	c++ -std=c++98 $flags -DNS_NO_DLLSPEC @in $ldflags -o @out
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Install/Package library
 
 install_file libns2$so lib
@@ -35,7 +38,7 @@ install_file jsonc$exe bin
 [W] install_file libns2$lib lib
 install_dir $root$/include .
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Build tests
 
 set tests_flags = -O3 -g -Wall -L. -lns2 -I$root$/include \
@@ -69,7 +72,7 @@ phony tests_cpp11 deps $tests_cpp11.files
 
 phony tests deps tests_cpp98 tests_cpp03 tests_cpp11
 
-# ------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Build bin
 
 build_files examples_cpp11 foreach glob:$root$/examples/*.cpp \

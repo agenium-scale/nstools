@@ -907,8 +907,9 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   }
 
   // finally add linker flags
+  ret.push_back("/link");
+  ret.push_back("/INCREMENTAL:NO");
   if (linker_args.size() > 0) {
-    ret.push_back("/link");
     ret.insert(ret.end(), linker_args.begin(), linker_args.end());
   }
 

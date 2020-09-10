@@ -93,8 +93,8 @@ it did fit our needs. After having considered other build systems our choice
 was made to write yet another one that suits our needs. This build system may
 or may not be the right one for you. It was not written to replace CMake or the
 autotools worldwide. It was written for our needs only. As no dedicated pages
-for the documentation is ready for nstools and for nsconfig, what follows is the
-documentation of nsconfig.
+for the documentation is ready for nstools and for nsconfig, what follows is
+the documentation of nsconfig.
 
 ## Overview
 
@@ -115,12 +115,12 @@ several compilers: GCC/Clang, MSVC and ICC.
     set cflags = -Wall -O2
 
     # Compile each .cpp file into an object file
-    build_files foo foreach glob:${root}/*.cpp as %b$o
+    build_files foo foreach glob:${root}/*.cpp as %r$o
             c++ $cflags @item -c -o @out
  
     # Link all object files together
     build_file foo$exe deps $foo.files
-            c++ $foo_files -o @out
+            c++ @in -o @out
 
 Once your build.nsconfig is written simply call nsconfig as you would CMake.
 
@@ -136,6 +136,29 @@ By default three rules will be generated:
 - `update`: will re-execute nsconfig with the arguments that were used to
   generate the Makefile/Ninja build file.
 
+**WARNING:** when building a dynamic and a static library from the same source
+code use different output and intermediate filenames. Indeed on Windows a .lib
+file is written along a .dll file. Therefore "libfoo.lib" will come with
+"libfoo.dll" but is not a static library. Therefore we advise to call the
+corresponding static library "libstatic\_foo.lib". We give below a snippet
+for building both a dynmic and static library.
+
+    # Compile each .cpp file into an object file
+    build_files foo foreach glob:${root}/*.cpp as %r$o
+            c++ $cflags @item -c -o @out
+
+    # Link all object files together into a dll
+    build_file libfoo$so deps $foo.files
+            c++ -shared @in -o @out
+
+    # Compile each .cpp file into an object file
+    build_files static_foo foreach glob:${root}/*.cpp as static_%r$o
+            c++ $cflags @item -c -o @out
+
+    # Link all object files together into a static library
+    build_file libstatic_foo$a deps $static_foo.files
+            ar rcs @out @in
+
 ## Nsconfig command line switches
 
 - `-Ggenerator`: Choose which generator to use. Supported generators:
@@ -149,7 +172,7 @@ By default three rules will be generated:
   build.nsconfig files. It can be accessed with `%var%`.
 
 - `-list-vars`: List variables specific to a project. The list of variables
-  simply consists of those that are in ifnot_set.
+  simply consists of those that are in `ifnot_set`.
 
 - `-ooutput`: Instead of writing its output to the default file (`build.ninja`
   for Ninja, Makefile for the other generators) write the output to the file

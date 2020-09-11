@@ -115,7 +115,7 @@ several compilers: GCC/Clang, MSVC and ICC.
     set cflags = -Wall -O2
 
     # Compile each .cpp file into an object file
-    build_files foo foreach glob:%root%/*.cpp as %b$o
+    build_files foo foreach glob:${root}/*.cpp as %b$o
             c++ $cflags @item -c -o @out
  
     # Link all object files together

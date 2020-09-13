@@ -1138,6 +1138,18 @@ static void translate_para(status_t *status_, std::string const &line,
 
     } else {
 
+      // backslash
+      if (line[i] == '\\') {
+        if (i == line.size() - 1) {
+          status.bufferize(status.br());
+        } else {
+          status.bufferize(htmlize(line[i + 1]));
+        }
+        i++;
+        status.currpos.advanceby(1);
+        continue;
+      }
+
       // ** strong emphasize or bold
       if (i + 1 < line.size() && line[i] == '*' && line[i + 1] == '*') {
         // std::cout << "DEBUG: strong emphasize" << std::endl;

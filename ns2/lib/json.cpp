@@ -231,8 +231,15 @@ static double parse_double(status_t *status_, std::string const &line,
   double fractional_part = 0.0;
   double exponent_part = 0.0;
 
+  // sign must be determined here in case of numbers such as -0.XXX or -.XXX
+  double sign = 1.0;
+  if (line[i] == '-') {
+    sign = -1.0;
+    i++;
+  }
+
   // integral part
-  integral_part = parse_long(&status, line, &i, ".eE", AllowMinusOnly, false);
+  integral_part = parse_long(&status, line, &i, ".eE", AllowNone, false);
 
   // fractional part (if any)
   if (i < line.size() && line[i] == '.') {
@@ -262,9 +269,11 @@ static double parse_double(status_t *status_, std::string const &line,
   i--; // don't forget to go back to the last char part of the number
 
   if (integral_part >= 0.0) {
-    return (integral_part + fractional_part) * std::pow(10.0, exponent_part);
+    return sign * (integral_part + fractional_part) *
+           std::pow(10.0, exponent_part);
   } else {
-    return (integral_part - fractional_part) * std::pow(10.0, exponent_part);
+    return sign * (integral_part - fractional_part) *
+           std::pow(10.0, exponent_part);
   }
 }
 

@@ -596,6 +596,7 @@ gcc_clang(std::string const &compiler,
   args["-std=c++11"] = "-std=c++11 -pedantic";
   args["-std=c++14"] = "-std=c++14 -pedantic";
   args["-std=c++17"] = "-std=c++17 -pedantic";
+  args["-std=c++20"] = "-std=c++20 -pedantic";
   args["-O0"] = "-O0";
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";
@@ -714,18 +715,21 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
     args["-std=c++11"] = "";
     args["-std=c++14"] = "/std:c++14";
     args["-std=c++17"] = "/std:c++17";
+    args["-std=c++20"] = "/std:c++latest";
   } else if (ci.version >= 1900) {
     args["-std=c++98"] = "/Zc:__cplusplus";
     args["-std=c++03"] = "/Zc:__cplusplus";
     args["-std=c++11"] = "/Zc:__cplusplus";
     args["-std=c++14"] = "/std:c++14 /Zc:__cplusplus";
     args["-std=c++17"] = "/std:c++latest /Zc:__cplusplus";
+    args["-std=c++20"] = "/std:c++latest /Zc:__cplusplus";
   } else {
     args["-std=c++98"] = "/Zc:__cplusplus";
     args["-std=c++03"] = "/Zc:__cplusplus";
     args["-std=c++11"] = "/Zc:__cplusplus";
     args["-std=c++14"] = "/Zc:__cplusplus";
     args["-std=c++17"] = "/Zc:__cplusplus";
+    args["-std=c++20"] = "/Zc:__cplusplus";
   }
   args["-O0"] = "/Od";
   args["-O1"] = "/O2";
@@ -939,6 +943,7 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-std=c++11"] = "-std=c++11 -pedantic";
   args["-std=c++14"] = "-std=c++14 -pedantic";
   args["-std=c++17"] = "-std=c++17 -pedantic";
+  args["-std=c++20"] = "-std=c++20 -pedantic";
   args["-O0"] = "-O0";
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";
@@ -1064,7 +1069,8 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
       host_tokens.push_back(tokens[i]);
       continue;
     }
-    if (arg == "-std=c++03" || arg == "-std=c++11" || arg == "-std=c++14") {
+    if (arg == "-std=c++03" || arg == "-std=c++11" || arg == "-std=c++14" ||
+        arg == "-std=c++17" || arg == "-std=c++20") {
       ret.push_back("-std c++" + arg.substr(8));
       host_tokens.push_back(tokens[i]);
       continue;
@@ -1173,6 +1179,7 @@ hipcc_hcc(std::string const &compiler,
   args["-std=c++11"] = "-std=c++11 -pedantic";
   args["-std=c++14"] = "-std=c++14 -pedantic";
   args["-std=c++17"] = "-std=c++17 -pedantic";
+  args["-std=c++20"] = "-std=c++20 -pedantic";
   args["-O0"] = "-O0";
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";

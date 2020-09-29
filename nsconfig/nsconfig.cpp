@@ -286,6 +286,7 @@ int main2(int argc, char **argv) {
   pi.generate_install = true;
   pi.generate_update = true;
   pi.generate_package = true;
+  pi.translate = true;
   pi.build_nsconfig = shell::ify(pi.source_dir + "/build.nsconfig");
   pi.cmdline = cmdline;
 

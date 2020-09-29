@@ -97,6 +97,8 @@ struct infos_t {
   bool backend_supports_self_generation;
   bool backend_supports_header_deps;
   bool generate_header_deps_flags;
+  bool translate;
+  parser::cursor_t translate_cursor;
   compiler::infos_t current_compiler;
 
   // to collect helpers from ifnot_set

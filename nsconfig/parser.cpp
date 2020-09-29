@@ -603,6 +603,17 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
     // just a shortcut
     std::string const &head = tokens[0].text;
 
+    // end_translate: must be here to avoid the parsing of any other command
+    if (!cmd && head == "end_translate") {
+      if (pi.translate == true) {
+        die("unexpected 'end_translate', no corresponding "
+            "'begin_translate_if'",
+            tokens[0].cursor);
+      }
+      pi.translate = true;
+      continue;
+    }
+
     // set and ifnot_set
     // We begin by this command because it allows us to skip the rest
     // of the commands when the user just wants to list variables that can
@@ -689,6 +700,33 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
     // in the build.config file and I don't know whether it is a good thing
     // or not.
     if (pi.getting_vars_list) {
+      continue;
+    }
+
+    // begin_translate_if
+    if (!cmd && head == "begin_translate_if") {
+      if (tokens.size() == 1) {
+        die("expecting expression after", tokens[0].cursor);
+      }
+      if (tokens.size() == 2) {
+        die("expecting comparison operator after", tokens[1].cursor);
+      }
+      if (tokens[2].text != "==" && tokens[2].text != "!=") {
+        die("comparison operator must be '==' or '!='", tokens[2].cursor);
+      }
+      if (tokens.size() == 3) {
+        die("expecting expression after", tokens[2].cursor);
+      }
+      if (tokens.size() > 4) {
+        die("unexpected token", tokens[4].cursor);
+      }
+      if ((tokens[2].text == "==" && tokens[1].text == tokens[3].text) ||
+          (tokens[2].text == "!=" && tokens[1].text != tokens[3].text)) {
+        pi.translate = true;
+      } else {
+        pi.translate = false;
+      }
+      pi.translate_cursor = tokens[0].cursor;
       continue;
     }
 
@@ -1278,6 +1316,13 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
   pi.getting_vars_list = false;
   parse_rec(&ret, in, &pi);
 
+  // Check for non closed begin_translate_if
+  if (pi.translate == false) {
+    std::cerr << "nsconfig: error: unfinished begin_translate_if on line "
+              << pi.translate_cursor.lineno << std::endl;
+    exit(EXIT_FAILURE);
+  }
+
   // Check for unused variables
   std::vector<std::string> used_vars;
   std::vector<std::string> unused_vars;
@@ -1368,14 +1413,14 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
     rd.deps.push_back(pi.build_nsconfig);
     rd.cmds.push_back(pi.cmdline);
     if (!pi.backend_supports_self_generation) {
-      rd.cmds.push_back("echo x");
-      rd.cmds.push_back("echo x x x");
-      rd.cmds.push_back("echo x x x x x");
-      rd.cmds.push_back("echo x x x x x x . . . RERUN " + pi.make_command);
-      rd.cmds.push_back("echo x x x x x");
-      rd.cmds.push_back("echo x x x");
-      rd.cmds.push_back("echo x");
-      rd.cmds.push_back("exit 99");
+      rd.cmds.push_back("@echo x");
+      rd.cmds.push_back("@echo x x x");
+      rd.cmds.push_back("@echo x x x x x");
+      rd.cmds.push_back("@echo x x x x x x . . . RERUN " + pi.make_command);
+      rd.cmds.push_back("@echo x x x x x");
+      rd.cmds.push_back("@echo x x x");
+      rd.cmds.push_back("@echo x");
+      rd.cmds.push_back("@exit 99");
     }
     pi.generate_self = false; // avoid the target to depend on itself
     add_target(rd, &ret, &pi);

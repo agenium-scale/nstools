@@ -26,28 +26,62 @@
 
 CXX          = g++
 OFLAGS       = -O3 -g
-CXX_FLAGS    = $(OFLAGS) -pthread -std=c++98 -pedantic \
+CXX_FLAGS    = $(OFLAGS) -std=c++98 -pedantic \
                -Wall -Wextra -Wconversion \
-               -I../ns2/include -DNS_NO_DLLSPEC
-NS2_SRC      = ../ns2/lib/string.cpp ../ns2/lib/fs.cpp ../ns2/lib/process.cpp \
-               ../ns2/lib/backtrace.cpp ../ns2/lib/levenshtein.cpp
-NSCONFIG_SRC = backend_ninja.cpp \
-               backend_make.cpp \
-               compiler.cpp \
-               nsconfig.cpp \
-               parser.cpp \
-               shell.cpp \
-               find_exe_lib_header.cpp
+               -I../ns2/include -DNS_NO_DLLSPEC \
+               -c
 
-all:
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) -o nsconfig
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp -o nstest
+all: nsconfig nstest
 
-nsconfig: ../.git/logs/HEAD
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) -o nsconfig
+string.o: ../ns2/lib/string.cpp ../ns2/include/ns2/string.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/string.cpp -o $@
 
-nstest: ../.git/logs/HEAD
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp -o nstest
+fs.o: ../ns2/lib/fs.cpp ../ns2/include/ns2/fs.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/fs.cpp -o $@
+
+process.o: ../ns2/lib/process.cpp ../ns2/include/ns2/process.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/process.cpp -o $@
+
+backtrace.o: ../ns2/lib/backtrace.cpp ../ns2/include/ns2/backtrace.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/backtrace.cpp -o $@
+
+levenshtein.o: ../ns2/lib/levenshtein.cpp ../ns2/include/ns2/levenshtein.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/levenshtein.cpp -o $@
+
+backend_ninja.o: backend_ninja.cpp backend_ninja.hpp
+	$(CXX) $(CXX_FLAGS) backend_ninja.cpp -o $@
+
+backend_make.o: backend_make.cpp backend_make.hpp
+	$(CXX) $(CXX_FLAGS) backend_make.cpp -o $@
+
+compiler.o: compiler.cpp compiler.hpp
+	$(CXX) $(CXX_FLAGS) compiler.cpp -o $@
+
+nsconfig.o: nsconfig.cpp nsconfig.hpp
+	$(CXX) $(CXX_FLAGS) nsconfig.cpp -o $@
+
+parser.o: parser.cpp parser.hpp
+	$(CXX) $(CXX_FLAGS) parser.cpp -o $@
+
+shell.o: shell.cpp
+	$(CXX) $(CXX_FLAGS) shell.cpp -o $@
+
+find_exe_lib_header.o: find_exe_lib_header.cpp find_exe_lib_header.hpp
+	$(CXX) $(CXX_FLAGS) find_exe_lib_header.cpp -o $@
+
+nstest.o: nstest.cpp
+	$(CXX) $(CXX_FLAGS) nstest.cpp -o $@
+
+nsconfig: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
+          backend_make.o compiler.o nsconfig.o parser.o shell.o \
+          find_exe_lib_header.o
+	$(CXX) string.o fs.o process.o backtrace.o levenshtein.o \
+	       backend_ninja.o backend_make.o compiler.o nsconfig.o parser.o \
+	       shell.o find_exe_lib_header.o -o $@
+
+nstest: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
+        backend_make.o compiler.o nstest.o
+	$(CXX) string.o fs.o process.o backtrace.o nstest.o -lpthread -o $@
 
 install: all
 	mkdir -p ~/.local/bin
@@ -59,4 +93,4 @@ install: all
 	-cp nsconfig.ftdetect.vim ~/.vim/ftdetect/nsconfig.vim
 
 clean:
-	rm -f nsconfig nstest
+	rm -f nsconfig nstest *.o

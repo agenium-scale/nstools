@@ -54,6 +54,8 @@ sy keyword nsconfig_statements
   \ install_dir
   \ install_file
   \ package_name
+  \ begin_translate_if
+  \ end_translate_if
 
 sy keyword nsconfig_types
   \ optional

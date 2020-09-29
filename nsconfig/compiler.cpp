@@ -392,7 +392,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
       popen_src(ci, COMPILER_INFOS_DIR, "version",
                 "printf(\"%li\", " + version_formula + ");");
   if (code.second) {
-    OUTPUT << "Cannot find compiler version" << std::endl;
+    OUTPUT << "Cannot find " << get_type_str(ci.type) << " version"
+           << std::endl;
     exit(EXIT_FAILURE);
   }
   ci.version = atoi(code.first.c_str());
@@ -432,7 +433,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "printf(\"x86_64\");\n"
         "#endif");
     if (code.second) {
-      OUTPUT << "Cannot find compiler target" << std::endl;
+      OUTPUT << "Cannot find " << get_type_str(ci.type) << " target"
+             << std::endl;
       exit(EXIT_FAILURE);
     }
     get_archi_from_string(&ci, code.first);

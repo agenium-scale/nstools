@@ -533,9 +533,13 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       continue;
     }
 
-    // perform variable substitution
+    // perform variable substitution if we are translating
     cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-    line = substitute(trim_raw_line, cursor, &pi);
+    if (pi.translate) {
+      line = substitute(trim_raw_line, cursor, &pi);
+    } else {
+      line  = trim_raw_line;
+    }
     cursor.before_after_expand = cursor_t::AfterVariableExpansion;
     cursor.source = line;
 
@@ -550,8 +554,14 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       // read next line and tokenize it
       cursor.lineno++;
       std::getline(in, line);
+
+      // perform variable substitution if we are translating
       cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-      line = substitute(ns2::strip(line), cursor, &pi);
+      if (pi.translate) {
+        line = substitute(ns2::strip(line), cursor, &pi);
+      } else {
+        line = ns2::strip(line);
+      }
       cursor.before_after_expand = cursor_t::AfterVariableExpansion;
       cursor.source = line;
       if (line.size() == 0) {
@@ -602,17 +612,6 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
 
     // just a shortcut
     std::string const &head = tokens[0].text;
-
-    // end_translate: must be here to avoid the parsing of any other command
-    if (!cmd && head == "end_translate") {
-      if (pi.translate == true) {
-        die("unexpected 'end_translate', no corresponding "
-            "'begin_translate_if'",
-            tokens[0].cursor);
-      }
-      pi.translate = true;
-      continue;
-    }
 
     // set and ifnot_set
     // We begin by this command because it allows us to skip the rest
@@ -703,6 +702,23 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       continue;
     }
 
+    // end_translate: must be here to avoid the parsing of any other command
+    if (!cmd && head == "end_translate") {
+      if (!pi.begin_translate) {
+        die("unexpected 'end_translate', no corresponding "
+            "'begin_translate_if'",
+            tokens[0].cursor);
+      }
+      pi.translate = true;
+      pi.begin_translate = false;
+      continue;
+    }
+
+    // if we are not in a translation zone then continue
+    if (pi.translate == false) {
+      continue;
+    }
+
     // begin_translate_if
     if (!cmd && head == "begin_translate_if") {
       if (tokens.size() == 1) {
@@ -727,6 +743,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
         pi.translate = false;
       }
       pi.translate_cursor = tokens[0].cursor;
+      pi.begin_translate = true;
       continue;
     }
 

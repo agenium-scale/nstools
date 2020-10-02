@@ -400,6 +400,7 @@ static void dump_header(std::ostream *out_, int argc, char **argv) {
       << "#include <string>\n"
       << "#include <iomanip>\n"
       << "#include <istream>\n"
+      << "#include <new>\n"
       << "#include <ostream>\n";
 }
 
@@ -726,7 +727,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
         "  double *double_ptr;\n"
         "  std::vector<double> *vector_double_ptr;\n"
         "  bool *bool_ptr;\n"
-        "  std::vector<bool> *vector_bool_ptr;\n",
+        "  std::vector<bool> *vector_bool_ptr;\n"
+        "  std::string msg; // here to avoid stack overflow\n",
         class_name, struct_name);
 
   // enum
@@ -761,10 +763,10 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
 
   // implementation of exception for wrong type
   print(&out, "  void throw_wrong_type(std::string const &expected_type,\n"
-              "                        ns2::cursor_t const &cursor) const {\n"
-              "    std::string msg(\"ERROR: expecting value of type \" +\n"
+              "                        ns2::cursor_t const &cursor) {\n"
+              "    msg = \"ERROR: expecting value of type \" +\n"
               "                    expected_type + \" at \" +\n"
-              "                    cursor.to_string());\n"
+              "                    cursor.to_string();\n"
               "    NS2_THROW(std::runtime_error, msg.c_str());\n"
               "  }\n\n");
 
@@ -804,7 +806,9 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "      nested_maps.pop_back();\n"
-              "      state = nested_maps.back();\n"
+              "      if (nested_maps.size() > 0) {\n"
+              "        state = nested_maps.back();\n"
+              "      }\n"
               "      return true;\n"
               "    case waiting_for_double:\n"
               "      throw_wrong_type(\"number\", cursor);\n"
@@ -835,8 +839,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "    {\n"
-              "      std::string msg(\"ERROR: expected key at \" +\n"
-              "                      cursor.to_string());\n"
+              "      msg = \"ERROR: expected key at \" +\n"
+              "                      cursor.to_string();\n"
               "      NS2_THROW(std::runtime_error, msg.c_str());\n"
               "      return false;\n"
               "    }\n"
@@ -864,8 +868,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "    {\n"
-              "      std::string msg(\"ERROR: expected key at \" +\n"
-              "                      cursor.to_string());\n"
+              "      msg = \"ERROR: expected key at \" +\n"
+              "                      cursor.to_string();\n"
               "      NS2_THROW(std::runtime_error, msg.c_str());\n"
               "      return false;\n"
               "    }\n"
@@ -897,8 +901,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
               "    case waiting_for_vector_double:\n"
               "    case waiting_for_vector_string:\n"
               "    case waiting_for_vector_bool: {\n"
-              "      std::string msg(\"unexpected key at \" +\n"
-              "                      cursor.to_string());\n"
+              "      msg = \"unexpected key at \" +\n"
+              "                      cursor.to_string();\n"
               "      return false;\n"
               "    }\n"
               );
@@ -919,9 +923,9 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
       } else {
         print(&out,
               "        if (buf->%.is_@_given) {\n"
-              "          std::string msg(\"ERROR: key \" @ \n"
+              "          msg = \"ERROR: key \" @ \n"
               "                          \" already given at \" +\n"
-              "                          cursor.to_string());\n"
+              "                          cursor.to_string();\n"
               "          NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        }\n"
               "        buf->%.is_@_given = true;\n"
@@ -974,8 +978,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
       print(&out, "      } else ");
     }
     print(&out, "{\n"
-                "        std::string msg(\"ERROR: unknown key '\" + key +\n"
-                "                        \"' at \" + cursor.to_string());\n"
+                "        msg = \"ERROR: unknown key '\" + key +\n"
+                "                        \"' at \" + cursor.to_string();\n"
                 "        NS2_THROW(std::runtime_error, msg.c_str());\n"
                 "        return false;\n"
                 "      }\n");
@@ -1013,8 +1017,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "      {\n"
-              "        std::string msg(\"ERROR: unexpected boolean at \" +\n"
-              "                        cursor.to_string());\n"
+              "        msg = \"ERROR: unexpected boolean at \" +\n"
+              "                        cursor.to_string();\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
               "      }\n"
@@ -1051,8 +1055,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "      {\n"
-              "        std::string msg(\"ERROR: unexpected string at \" +\n"
-              "                        cursor.to_string());\n"
+              "        msg = \"ERROR: unexpected string at \" +\n"
+              "                        cursor.to_string();\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
               "      }\n"
@@ -1088,8 +1092,8 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
     print(&out, "    case waiting_for_a_key_in_@:\n", it->first);
   }
   print(&out, "      {\n"
-              "        std::string msg(\"ERROR: unexpected number at \" +\n"
-              "                        cursor.to_string());\n"
+              "        msg = \"ERROR: unexpected number at \" +\n"
+              "                        cursor.to_string();\n"
               "        NS2_THROW(std::runtime_error, msg.c_str());\n"
               "        return false;\n"
               "      }\n"
@@ -1123,14 +1127,19 @@ static void dump_json_read(std::ostream *out_, tree_t const &tree,
         "};\n\n"
         "void read_@(std::istream *in_, @_t *buf) {\n"
         "  std::istream &in = *in_;\n"
-        "  @ parser(buf);\n"
+        "  @ *parser = new (std::nothrow) @(buf);\n"
+        "  if (parser == NULL) {\n"
+        "    NS2_THROW(std::runtime_error,\n"
+        "              \"cannot allocate memory for JSON parser\");\n"
+        "  }\n"
         "  std::vector<std::string> errors;\n"
-        "  ns2::parse_json(&in, &errors, &parser);\n"
+        "  ns2::parse_json(&in, &errors, parser);\n"
+        "  delete parser;\n"
         "  if (errors.size() > 0) {\n"
         "    NS2_THROW(std::runtime_error, errors[0].c_str());\n"
         "  }\n"
         "}\n",
-        struct_name, struct_name, class_name);
+        struct_name, struct_name, class_name, class_name);
 }
 
 // ----------------------------------------------------------------------------

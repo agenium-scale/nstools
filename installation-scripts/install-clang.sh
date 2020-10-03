@@ -53,7 +53,7 @@ rm -f ${WORK_DIR}/${LLVM_PROJECT_XZ}
 (cd ${WORK_DIR} && tar xf ${LLVM_PROJECT_XZ})
 
 # Build LLVM and stuff
-PROJECTS="clang;libcxx;libcxxabi;libunwind;lldb;compiler-rt;lld"
+PROJECTS="clang"
 BUILD_DIR="${WORK_DIR}/${LLVM_PROJECT_DIR}/build"
 mkdir -p "${BUILD_DIR}"
 (cd "${BUILD_DIR}" && cmake ../llvm \

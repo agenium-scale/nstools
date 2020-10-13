@@ -39,10 +39,9 @@ static std::vector<std::string> gcc_clang(std::string const &,
                                           compiler::infos_t const &,
                                           parser::infos_t *);
 
-static std::vector<std::string> hipcc_hcc(std::string const &,
-                                          std::vector<parser::token_t> const &,
-                                          compiler::infos_t const &,
-                                          parser::infos_t *);
+static std::vector<std::string>
+hipcc_hcc_dpcpp(std::string const &, std::vector<parser::token_t> const &,
+                compiler::infos_t const &, parser::infos_t *);
 
 static std::vector<std::string> icc(std::string const &,
                                     std::vector<parser::token_t> const &,
@@ -469,7 +468,8 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   }
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
-    return hipcc_hcc(ci.path, tokens, ci, &pi);
+  case compiler::infos_t::DPCpp:
+    return hipcc_hcc_dpcpp(ci.path, tokens, ci, &pi);
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
   }
@@ -493,6 +493,7 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::ICC:
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
+  case compiler::infos_t::DPCpp:
 #if defined(NS2_IS_BSD) || defined(NS2_IS_MACOS)
     if (directory == ".") {
       return "-rpath,$ORIGIN";
@@ -1164,9 +1165,9 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 // ----------------------------------------------------------------------------
 
 static std::vector<std::string>
-hipcc_hcc(std::string const &compiler,
-          std::vector<parser::token_t> const &tokens,
-          compiler::infos_t const &ci, parser::infos_t *pi_) {
+hipcc_hcc_dpcpp(std::string const &compiler,
+                std::vector<parser::token_t> const &tokens,
+                compiler::infos_t const &ci, parser::infos_t *pi_) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   parser::infos_t &pi = *pi_;
@@ -1276,7 +1277,8 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
              cmd == "g++" || cmd == "clang" || cmd == "clang++" ||
              cmd == "mingw" || cmd == "armclang" || cmd == "armclang++" ||
-             cmd == "icc" || cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc") {
+             cmd == "icc" || cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" ||
+             cmd == "dpcpp") {
     compiler::infos_t ci = compiler::get(cmd, &pi);
     return ns2::join(comp(ci, tokens, &pi), " ");
   } else if (pi.action == parser::infos_t::Permissive) {

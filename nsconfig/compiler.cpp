@@ -98,6 +98,9 @@ void get_version_from_string(compiler::infos_t *ci_,
   case compiler::infos_t::HCC:
     ci.version = compute_version(str, 10000, 100, 0);
     break;
+  case compiler::infos_t::DPCpp:
+    ci.version = compute_version(str, 1, 0, 0);
+    break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;
@@ -149,6 +152,9 @@ int get_type(infos_t *ci, std::string const &str) {
     return 0;
   } else if (str == "hcc") {
     ci->type = compiler::infos_t::HCC;
+    return 0;
+  } else if (str == "dpc++" || str == "dpcpp") {
+    ci->type = compiler::infos_t::DPCpp;
     return 0;
   }
   return -1;
@@ -379,6 +385,9 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case compiler::infos_t::HCC:
     version_formula = "(long)(__hcc_major__ * 10000 + __hcc_minor__ * 100)";
     break;
+  case compiler::infos_t::DPCpp:
+    version_formula = "(long)__INTEL_CLANG_COMPILER";
+    break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;
@@ -416,6 +425,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case infos_t::HCC:
   case infos_t::ICC:
   case infos_t::HIPCC:
+  case infos_t::DPCpp:
     code = popen_src(ci, COMPILER_INFOS_DIR, "target",
         "#if defined(_M_ARM_ARMV7VE) || defined(_M_ARM) || "
         "(__ARM_ARCH > 0 && __ARM_ARCH <= 7) || "
@@ -501,6 +511,8 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "hipcc";
   case compiler::infos_t::HCC:
     return "hcc";
+  case compiler::infos_t::DPCpp:
+    return "dpcpp";
   case compiler::infos_t::None:
     return "none";
   }

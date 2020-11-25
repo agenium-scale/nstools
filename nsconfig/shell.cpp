@@ -1,6 +1,4 @@
-// MIT License
-//
-// Copyright (c) 2019 Agenium Scale
+// Copyright (c) 2020 Agenium Scale
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -663,6 +661,27 @@ gcc_clang(std::string const &compiler,
   args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
 
+  if (ci.type == compiler::infos_t::GCC) {
+    args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer";
+  } else {
+    /* https://stackoverflow.com/questions/43864882
+        /fno-omit-frame-pointer-equivalent-compiler-option-for-clang */
+    args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer "
+                                      "-mno-omit-leaf-frame-pointer";
+  }
+
+  if (ci.type == compiler::infos_t::GCC) {
+    if (ci.version <= 40900) {
+      args["-vec-report"] = "-ftree-vectorizer-verbose=7";
+    } else {
+      args["-vec-report"] = "-fopt-info-vec-all";
+    }
+  } else {
+    args["-vec-report"] = "-Rpass=loop-vectorize "
+                          "-Rpass-missed=loop-vectorize "
+                          "-Rpass-analysis=loop-vectorize";
+  }
+
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;
     // The effect of --version on the command line is that the compiler
@@ -777,6 +796,20 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-fdiagnostics-color=always"] = "";
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
+  if (ci.version >= 1800) { // Visual Studio 2013
+    args["-vec-report"] = "/Qvec-report:2";
+  } else {
+    args["-vec-report"] = "";
+  }
+
+  /* Omit frame pointer only available in 32-bits mode:
+     https://docs.microsoft.com/en-us/cpp/build/reference
+         /oy-frame-pointer-omission?view=msvc-160 */
+  if (ci.nbits == 32) {
+    args["-fno-omit-frame-pointer"] = "/Oy-";
+  } else {
+    args["-fno-omit-frame-pointer"] = "";
+  }
 
   std::vector<std::string> linker_args;
   for (size_t i = 1; i < tokens.size(); i++) {
@@ -983,10 +1016,12 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-shared"] = "-shared";
   args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
-
-  // Power extensions
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
+  args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer "
+                                    "-mno-omit-leaf_frame-pointer";
+  args["-vec-report"] = "-qopt-report -qopt-report-phase=vec "
+                        "-qopt-report-file=stdout";
 
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;
@@ -1221,6 +1256,13 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-shared"] = "-shared";
   args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
+  /* https://stackoverflow.com/questions/43864881
+      /fno-omit-frame-pointer-equivalent-compiler-option-for-clang */
+  args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer "
+                                    "-mno-omit-leaf-frame-pointer";
+  args["-vec-report"] = "-Rpass=loop-vectorize "
+                        "-Rpass-missed=loop-vectorize "
+                        "-Rpass-analysis=loop-vectorize";
 
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;

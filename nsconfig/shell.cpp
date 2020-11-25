@@ -662,11 +662,11 @@ gcc_clang(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
 
   if (ci.type == compiler::infos_t::GCC) {
-    args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer";
+    args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer";
   } else {
     /* https://stackoverflow.com/questions/43864882
         /fno-omit-frame-pointer-equivalent-compiler-option-for-clang */
-    args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer "
+    args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer "
                                       "-mno-omit-leaf-frame-pointer";
   }
 
@@ -1258,7 +1258,7 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
   /* https://stackoverflow.com/questions/43864881
       /fno-omit-frame-pointer-equivalent-compiler-option-for-clang */
-  args["-fno-omit-frame-pointer"] = "-no-omit-frame-pointer "
+  args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer "
                                     "-mno-omit-leaf-frame-pointer";
   args["-vec-report"] = "-Rpass=loop-vectorize "
                         "-Rpass-missed=loop-vectorize "

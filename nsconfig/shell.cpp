@@ -636,12 +636,12 @@ gcc_clang(std::string const &compiler,
   args["-mneon64"] = "-mfpu=neon";
   args["-mneon128"] = "-mfpu=neon";
   args["-maarch64"] = "";
-  args["-msve"] = "-march=armv8-a+sve";
-  args["-msve128"] = "-march=armv8-a+sve -msve-vector-bits=128";
-  args["-msve256"] = "-march=armv8-a+sve -msve-vector-bits=256";
-  args["-msve512"] = "-march=armv8-a+sve -msve-vector-bits=512";
-  args["-msve1024"] = "-march=armv8-a+sve -msve-vector-bits=1024";
-  args["-msve2048"] = "-march=armv8-a+sve -msve-vector-bits=2048";
+  args["-msve"] = "-march=armv8.2-a+sve";
+  args["-msve128"] = "-march=armv8.2-a+sve -msve-vector-bits=128";
+  args["-msve256"] = "-march=armv8.2-a+sve -msve-vector-bits=256";
+  args["-msve512"] = "-march=armv8.2-a+sve -msve-vector-bits=512";
+  args["-msve1024"] = "-march=armv8.2-a+sve -msve-vector-bits=1024";
+  args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
   args["-maltivec"] = "-maltivec";
   args["-mcpu=power7"] = "-mcpu=power7";
 

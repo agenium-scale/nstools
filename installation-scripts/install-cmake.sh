@@ -31,11 +31,12 @@ mysudo() {
 
 # Set variables
 WORK_DIR=tmp
-TAR_GZ=cmake-3.10.0.tar.gz
-SRC_DIR=cmake-3.10.0
-PREFIX="/opt/local/cmake/3.10.0"
+VERSION=3.19.1
+TAR_GZ=cmake-${VERSION}.tar.gz
+SRC_DIR=cmake-${VERSION}
+PREFIX="/opt/local/cmake/${VERSION}"
 MODULE_PATH="$(dirname $(module path null))/cmake"
-MODULE_FILE=${MODULE_PATH}/3.10.0
+MODULE_FILE=${MODULE_PATH}/${VERSION}
 
 mkdir -p ${WORK_DIR}
 
@@ -44,7 +45,7 @@ rm -f ${WORK_DIR}/${TAR_GZ}
 rm -rf ${WORK_DIR}/${SRC_DIR}
 
 # Get a recent version of cmake
-(cd ${WORK_DIR} && curl -L https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz -o ${TAR_GZ})
+(cd ${WORK_DIR} && curl -L https://github.com/Kitware/CMake/releases/download/v${VERSION}/cmake-${VERSION}.tar.gz -o ${TAR_GZ})
 (cd ${WORK_DIR} && tar xf ${TAR_GZ})
 
 # Build

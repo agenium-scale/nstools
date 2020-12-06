@@ -43,6 +43,14 @@ struct thread_output_t {
 
 typedef thread::work_t<std::vector<std::string> > work_t;
 
+#ifdef NS2_IS_MSVC
+HANDLE mutex_curr_print;
+#else
+pthread_mutex_t mutex_curr_print;
+#endif
+
+int nb_print, curr_print;
+
 // ----------------------------------------------------------------------------
 
 thread_output_t thread_start(work_t *work) {
@@ -53,13 +61,44 @@ thread_output_t thread_start(work_t *work) {
       break;
     }
     if (!quiet) {
-      printf("-- Executing %s\n", exe->c_str());
+#ifdef NS2_IS_MSVC
+      DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
+#else
+      int code = pthread_mutex_lock(&mutex_curr_print);
+#endif
+      curr_print++;
+      printf("-- [%d/%d] Executing %s\n", curr_print, nb_print, exe->c_str());
       fflush(stdout);
+#ifdef NS2_IS_MSVC
+      if (code == WAIT_OBJECT_0) {
+        ReleaseMutex(mutex_curr_print);
+      }
+#else
+      if (code == 0) {
+        pthread_mutex_unlock(&mutex_curr_print);
+      }
+#endif
     }
     std::pair<std::string, int> result = ns2::popen((*exe) + " 2>&1");
     if (!quiet) {
-      printf("-- Return code of %s is %d\n", exe->c_str(), result.second);
+#ifdef NS2_IS_MSVC
+      DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
+#else
+      int code = pthread_mutex_lock(&mutex_curr_print);
+#endif
+      curr_print++;
+      printf("-- [%d/%d] Return code of %s is %d\n", curr_print, nb_print,
+             exe->c_str(), result.second);
       fflush(stdout);
+#ifdef NS2_IS_MSVC
+      if (code == WAIT_OBJECT_0) {
+        ReleaseMutex(mutex_curr_print);
+      }
+#else
+      if (code == 0) {
+        pthread_mutex_unlock(&mutex_curr_print);
+      }
+#endif
     }
     if (result.second != 0) {
       ret.fails.push_back(*exe);
@@ -157,6 +196,8 @@ int main2(int argc, char **argv) {
   }
 
   // Create work + output
+  nb_print = 2 * ((int)exes.size());
+  curr_print = 0;
   work_t work(exes);
   std::vector<thread_output_t> outputs;
 

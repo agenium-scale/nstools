@@ -600,7 +600,6 @@ gcc_clang(std::string const &compiler,
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";
   args["-O3"] = "-O3";
-  args["-Og"] = "-Og";
   args["-ffast-math"] = "-ffast-math";
   args["-g"] = "-g";
   args["-S"] = "-S";
@@ -644,6 +643,27 @@ gcc_clang(std::string const &compiler,
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
   args["-maltivec"] = "-maltivec";
   args["-mcpu=power7"] = "-mcpu=power7";
+  if (ci.type == compiler::infos_t::GCC) {
+    args["-msm_35"] = "";
+    args["-msm_50"] = "";
+    args["-msm_53"] = "";
+    args["-msm_60"] = "";
+    args["-msm_61"] = "";
+    args["-msm_62"] = "";
+    args["-msm_70"] = "";
+    args["-msm_72"] = "";
+    args["-msm_75"] = "";
+  } else {
+    args["-msm_35"] = "--cuda-gpu-arch=sm_35";
+    args["-msm_50"] = "--cuda-gpu-arch=sm_50";
+    args["-msm_53"] = "--cuda-gpu-arch=sm_53";
+    args["-msm_60"] = "--cuda-gpu-arch=sm_60";
+    args["-msm_61"] = "--cuda-gpu-arch=sm_61";
+    args["-msm_62"] = "--cuda-gpu-arch=sm_62";
+    args["-msm_70"] = "--cuda-gpu-arch=sm_70";
+    args["-msm_72"] = "--cuda-gpu-arch=sm_72";
+    args["-msm_75"] = "--cuda-gpu-arch=sm_75";
+  }
 
   if (ci.arch == compiler::infos_t::Intel) {
     args["-mfma"] = "-mfma";
@@ -755,7 +775,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-O1"] = "/O2";
   args["-O2"] = "/Ox";
   args["-O3"] = "/Ox";
-  args["-Og"] = "/Od";
   args["-g"] = "/Zi";
   args["-S"] = "/FA";
   args["-c"] = "/c";
@@ -796,6 +815,15 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-fdiagnostics-color=always"] = "";
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
+  args["-msm_35"] = "";
+  args["-msm_50"] = "";
+  args["-msm_53"] = "";
+  args["-msm_60"] = "";
+  args["-msm_61"] = "";
+  args["-msm_62"] = "";
+  args["-msm_70"] = "";
+  args["-msm_72"] = "";
+  args["-msm_75"] = "";
   if (ci.version >= 1800) { // Visual Studio 2013
     args["-vec-report"] = "/Qvec-report:2";
   } else {
@@ -982,7 +1010,6 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";
   args["-O3"] = "-O3";
-  args["-Og"] = "-O0";
   args["-g"] = "-g";
   args["-S"] = "-S";
   args["-c"] = "-c";
@@ -1018,6 +1045,15 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
+  args["-msm_35"] = "";
+  args["-msm_50"] = "";
+  args["-msm_53"] = "";
+  args["-msm_60"] = "";
+  args["-msm_61"] = "";
+  args["-msm_62"] = "";
+  args["-msm_70"] = "";
+  args["-msm_72"] = "";
+  args["-msm_75"] = "";
   args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer "
                                     "-mno-omit-leaf_frame-pointer";
   args["-vec-report"] = "-qopt-report -qopt-report-phase=vec "
@@ -1078,6 +1114,21 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   ret.push_back("-x cu");
   ret.push_back("-ccbin " + host_ci.path);
   ret.push_back("-m" + ns2::to_string(ci.nbits));
+  std::map<std::string, std::string> args;
+  args["-msm_35"] = "--gpu-code=sm_35";
+  args["-msm_50"] = "--gpu-code=sm_50";
+  args["-msm_53"] = "--gpu-code=sm_53";
+  args["-msm_60"] = "--gpu-code=sm_60";
+  args["-msm_61"] = "--gpu-code=sm_61";
+  args["-msm_62"] = "--gpu-code=sm_62";
+  args["-msm_70"] = "--gpu-code=sm_70";
+  args["-msm_72"] = "--gpu-code=sm_72";
+  args["-msm_75"] = "--gpu-code=sm_75";
+  args["-c"] = "-c";
+  args["-o"] = "-o";
+  args["-shared"] = "-shared";
+  args["-S"] = "--ptx";
+  args["-g"] = "-g -G -lineinfo";
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;
     // The effect of --version on the command line is that the compiler
@@ -1089,16 +1140,11 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
       ret.push_back("--version");
       return ret;
     }
-    if (arg == "-c" || arg == "-o" || arg == "-shared") {
-      ret.push_back(arg);
-      continue;
-    }
-    if (arg == "-S") {
-      ret.push_back("--ptx");
-      continue;
-    }
-    if (arg == "-g") {
-      ret.push_back("-g -G -lineinfo");
+    // If we do not find the argument in args, we do not emit an error, we
+    // pass the argument to the host compiler.
+    std::map<std::string, std::string>::const_iterator it = args.find(arg);
+    if (it != args.end()) {
+      ret.push_back(it->second);
       continue;
     }
     if (arg == "-lm" || arg == "-lpthread") {
@@ -1220,7 +1266,6 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-O1"] = "-O1";
   args["-O2"] = "-O2";
   args["-O3"] = "-O3";
-  args["-Og"] = "-Og";
   args["-ffast-math"] = "-ffast-math";
   args["-g"] = "-g";
   args["-S"] = "-S";
@@ -1250,6 +1295,15 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-msve2048"] = "";
   args["-maltivec"] = "";
   args["-mcpu=power7"] = "";
+  args["-msm_35"] = "--cuda-gpu-arch=sm_35";
+  args["-msm_50"] = "--cuda-gpu-arch=sm_50";
+  args["-msm_53"] = "--cuda-gpu-arch=sm_53";
+  args["-msm_60"] = "--cuda-gpu-arch=sm_60";
+  args["-msm_61"] = "--cuda-gpu-arch=sm_61";
+  args["-msm_62"] = "--cuda-gpu-arch=sm_62";
+  args["-msm_70"] = "--cuda-gpu-arch=sm_70";
+  args["-msm_72"] = "--cuda-gpu-arch=sm_72";
+  args["-msm_75"] = "--cuda-gpu-arch=sm_75";
   args["-mfma"] = "";
   args["-mfp16"] = "";
   args["-fopenmp"] = "-fopenmp";

@@ -543,6 +543,7 @@ compiler:
 - `-std=c++11`: compile using the C++11 standard.
 - `-std=c++14`: compile using the C++14 standard.
 - `-std=c++17`: compile using the C++17 standard.
+- `-std=c++20`: compile using the C++20 standard.
 - `-O1`: compile using level 1 optimizations.
 - `-O2`: compile using level 2 optimizations.
 - `-O3`: compile using level 3 optimizations.
@@ -571,6 +572,15 @@ compiler:
 - `-msve512`: enable SVE extensions for fixed sized vectors of 512 bits.
 - `-msve1024`: enable SVE extensions for fixed sized vectors of 1024 bits.
 - `-msve2048`: enable SVE extensions for fixed sized vectors of 2048 bits.
+- `-msm_35`: compile kernels for CUDA with device capability 3.5
+- `-msm_50`: compile kernels for CUDA with device capability 5.0
+- `-msm_53`: compile kernels for CUDA with device capability 5.3
+- `-msm_60`: compile kernels for CUDA with device capability 6.0
+- `-msm_61`: compile kernels for CUDA with device capability 6.1
+- `-msm_62`: compile kernels for CUDA with device capability 6.2
+- `-msm_70`: compile kernels for CUDA with device capability 7.0
+- `-msm_72`: compile kernels for CUDA with device capability 7.2
+- `-msm_75`: compile kernels for CUDA with device capability 7.5
 - `-mfma`: enable FMAs.
 - `-mfp16`: enable native FP16 support.
 - `-fopenmp`: enable handling of OpenMP directives.
@@ -586,6 +596,9 @@ compiler:
   as the binary.
 - `-fdiagnostics-color=always`: Use color in diagnostics.
 - `--version`: display compiler version and ignore all other flags.
+- `-fno-omit-frame-pointer`: Keep the frame pointer in a register for
+                             functions.
+- `-vec-report`: Print to stdout full report on autovectorization of loops.
 
 # Sshdetach
 

@@ -32,7 +32,7 @@
 
 // ----------------------------------------------------------------------------
 
-bool quiet;
+int verbose;
 
 // ----------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ thread_output_t thread_start(work_t *work) {
     if (exe == NULL) {
       break;
     }
-    if (!quiet) {
+    if (verbose >= 1) {
 #ifdef NS2_IS_MSVC
       DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
 #else
@@ -80,7 +80,7 @@ thread_output_t thread_start(work_t *work) {
 #endif
     }
     std::pair<std::string, int> result = ns2::popen((*exe) + " 2>&1");
-    if (!quiet) {
+    if (verbose >= 1) {
 #ifdef NS2_IS_MSVC
       DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
 #else
@@ -120,6 +120,7 @@ void help(FILE *out) {
   P("  --prefix=PREFIX  Prepand executables commands by PREFIX");
   P("  --suffix=SUFFIX  Append executables commands by SUFFIX");
   P("  -q               Quiet run");
+  P("  -v               Verbose run");
   P("  -jN              Run with N threads in parallel");
   P("  --help           Print the current text");
 #undef P
@@ -132,7 +133,7 @@ int main2(int argc, char **argv) {
   std::string suffix, prefix;
   int i0 = 1;
   size_t nb_threads = 1;
-  quiet = false;
+  verbose = 1;
 
   // Parse arguments
   for (i0 = 1; i0 < argc; i0++) {
@@ -150,7 +151,11 @@ int main2(int argc, char **argv) {
       continue;
     }
     if (!strcmp(argv[i0], "-q")) {
-      quiet = true;
+      verbose = 0;
+      continue;
+    }
+    if (!strcmp(argv[i0], "-v")) {
+      verbose = 2;
       continue;
     }
     if (!memcmp(argv[i0], "-j", 2)) {
@@ -188,7 +193,7 @@ int main2(int argc, char **argv) {
     }
 #endif
     } else {
-      if (!quiet) {
+      if (verbose >= 2) {
         std::cout << "-- Warning: " << globbed[i]
                   << " is not executable, discarding" << std::endl;
       }
@@ -214,13 +219,17 @@ int main2(int argc, char **argv) {
   }
 
   // Print out summary
-  std::cout << "--" << std::endl
-            << "-- OUTPUT:" << std::endl
-            << output << "-- SUMMARY: " << fails.size() << " fails out of "
-            << exes.size() << " tests" << std::endl;
-  std::sort(fails.begin(), fails.end());
-  for (size_t i = 0; i < fails.size(); i++) {
-    std::cout << "-- FAILED: " << fails[i] << std::endl;
+  std::cout << "--\n";
+  if (verbose >= 2) {
+    std::cout << "-- OUTPUT:\n" << output << "\n";
+  }
+  std::cout << "-- SUMMARY: " << fails.size() << " fails out of "
+            << exes.size() << " tests\n";
+  if (verbose >= 1) {
+    std::sort(fails.begin(), fails.end());
+    for (size_t i = 0; i < fails.size(); i++) {
+      std::cout << "-- FAILED: " << fails[i] << std::endl;
+    }
   }
 
   return (fails.size() > 0 ? 1 : 0);

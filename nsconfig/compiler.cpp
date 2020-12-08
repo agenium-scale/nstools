@@ -132,33 +132,44 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
 
 // ----------------------------------------------------------------------------
 
-int get_type(infos_t *ci, std::string const &str) {
+int get_type_and_lang(infos_t *ci, std::string const &str) {
   if (str == "gcc" || str == "g++") {
     ci->type = compiler::infos_t::GCC;
+    ci->lang = (str == "gcc" ? compiler::infos_t::C : compiler::infos_t::CPP);
     return 0;
   } else if (str == "clang" || str == "clang++") {
     ci->type = compiler::infos_t::Clang;
+    ci->lang =
+        (str == "clang" ? compiler::infos_t::C : compiler::infos_t::CPP);
     return 0;
   } else if (str == "armclang" || str == "armclang++") {
     ci->type = compiler::infos_t::ARMClang;
+    ci->lang =
+        (str == "armclang" ? compiler::infos_t::C : compiler::infos_t::CPP);
     return 0;
   } else if (str == "cl") {
     ci->type = compiler::infos_t::MSVC;
+    ci->lang = compiler::infos_t::Unknown;
     return 0;
   } else if (str == "icc") {
     ci->type = compiler::infos_t::ICC;
+    ci->lang = compiler::infos_t::Unknown;
     return 0;
   } else if (str == "nvcc") {
     ci->type = compiler::infos_t::NVCC;
+    ci->lang = compiler::infos_t::CPP;
     return 0;
   } else if (str == "hipcc") {
     ci->type = compiler::infos_t::HIPCC;
+    ci->lang = compiler::infos_t::CPP;
     return 0;
   } else if (str == "hcc") {
     ci->type = compiler::infos_t::HCC;
+    ci->lang = compiler::infos_t::CPP;
     return 0;
   } else if (str == "dpc++" || str == "dpcpp") {
     ci->type = compiler::infos_t::DPCpp;
+    ci->lang = compiler::infos_t::CPP;
     return 0;
   }
   return -1;
@@ -242,9 +253,8 @@ static void automatic_detection(infos_t *ci, std::string const &name,
     }
 #endif
   } else {
-    ci->lang = compiler::infos_t::Unknown;
     ci->path = name;
-    get_type(ci, name);
+    get_type_and_lang(ci, name);
   }
   return;
 

@@ -53,7 +53,7 @@ static std::string add_comp(parser::infos_t *pi, std::string const &type,
 
   // Getting here means we want the "normal" behavior of this function
   compiler::infos_t ci;
-  if (compiler::get_type(&ci, type) == -1) {
+  if (compiler::get_type_and_lang(&ci, type) == -1) {
     return "unknown compiler type: \"" + type + "\"";
   }
   ci.name = name;

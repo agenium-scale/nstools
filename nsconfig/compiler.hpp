@@ -70,7 +70,7 @@ typedef std::map<std::string, compiler::infos_t> list_t;
 
 infos_t get(std::string, parser::infos_t *);
 std::ostream &operator<<(std::ostream &, const compiler::infos_t &);
-int get_type(compiler::infos_t *, std::string const &);
+int get_type_and_lang(compiler::infos_t *, std::string const &);
 std::string get_type_str(compiler::infos_t::type_t const);
 std::string get_type_and_lang_str(compiler::infos_t::type_t const,
                                   compiler::infos_t::lang_t const);

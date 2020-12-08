@@ -731,12 +731,6 @@ gcc_clang(std::string const &compiler,
       continue;
     }
 
-    if (arg == "-x") {
-      ret.push_back(handle_x(tokens, i));
-      i++;
-      continue;
-    }
-
     std::vector<std::string> buf =
         translate_single_arg(compiler, args, ci, tokens[i], pi);
     ret.insert(ret.end(), buf.begin(), buf.end());
@@ -1366,13 +1360,6 @@ hipcc_hcc_dpcpp(std::string const &compiler,
       ret.push_back("--version");
       return ret;
     }
-
-    if (arg == "-x") {
-      ret.push_back(handle_x(tokens, i));
-      i++;
-      continue;
-    }
-
     std::vector<std::string> buf =
         translate_single_arg(compiler, args, ci, tokens[i], pi);
     ret.insert(ret.end(), buf.begin(), buf.end());

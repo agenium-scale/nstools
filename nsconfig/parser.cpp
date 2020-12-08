@@ -306,7 +306,7 @@ static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
     rule_desc_t rd(rule_desc);
     rd.autodeps_by = pi.current_compiler.type;
 
-    // Replace $in and $out
+    // Replace @in and @out
     std::string output(shell::stringify(shell::ify(rd0.output)));
     std::string input(ns2::join(shell::ify(rd0.deps), " "));
     for (size_t i = 0; i < rd.cmds.size(); i++) {
@@ -314,7 +314,7 @@ static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
       rd0.cmds[i] = ns2::replace(rd0.cmds[i], "@in", input);
     }
 
-    // If the rule has autodeps we may need to replace $$autodeps_flags for
+    // If the rule has autodeps we may need to replace @@autodeps_flags for
     // header dependencies
     if (rule_desc.autodeps &&
         pi.current_compiler.type != compiler::infos_t::None) {
@@ -436,6 +436,9 @@ inline std::string get_ext(compiler::infos_t::type_t type,
                            std::string const &which) {
   switch (type) {
   case compiler::infos_t::MSVC:
+#ifdef NS2_IS_MSVC
+  case compiler::infos_t::NVCC:
+#endif
     if (which == "@asm_ext") {
       return ".asm";
     } else if (which == "@obj_ext") {
@@ -450,9 +453,15 @@ inline std::string get_ext(compiler::infos_t::type_t type,
       return ".exe";
     }
     break;
+#ifndef NS2_IS_MSVC
+  case compiler::infos_t::NVCC:
+#endif
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
+  case compiler::infos_t::HIPCC:
+  case compiler::infos_t::HCC:
+  case compiler::infos_t::DPCpp:
   case compiler::infos_t::ICC:
     if (which == "@asm_ext") {
       return ".s";
@@ -482,10 +491,6 @@ inline std::string get_ext(compiler::infos_t::type_t type,
 #endif
     }
     break;
-  case compiler::infos_t::NVCC:
-  case compiler::infos_t::HIPCC:
-  case compiler::infos_t::HCC:
-  case compiler::infos_t::DPCpp:
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;

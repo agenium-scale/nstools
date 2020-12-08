@@ -53,6 +53,10 @@ std::string get_correpsonding_cpp_comp(std::string const &c_comp) {
     return "armclang++";
   } else if (c_comp == "icc") {
     return "icc";
+  } else if (c_comp == "hipcc") {
+    return "hipcc";
+  } else if (c_comp == "nvcc") {
+    return "nvcc";
   } else {
     return "";
   }
@@ -206,7 +210,7 @@ static void automatic_detection(infos_t *ci, std::string const &name,
       goto lbl_error_compiler;
     }
 #endif
-  } else if (name == "c++") {
+  } else if (name == "c++" || name == "c++-host") {
     ci->lang = compiler::infos_t::CPP;
     if (verbosity >= VERBOSITY_NORMAL) {
       OUTPUT << "Automatic C++ compiler detection" << std::endl;
@@ -413,7 +417,13 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     // For NVCC it depends on the host compiler and by default the
     // host compiler we choose for nvcc is c++, the one that can be given at
     // nsconfig command line.
-    compiler::infos_t host_ci = get("c++", &pi);
+    compiler::infos_t host_ci;
+    if (ci.name == "c++" ||
+        pi.compilers.find("c++-host") != pi.compilers.end()) {
+      host_ci = get("c++-host", &pi);
+    } else {
+      host_ci = get("c++", &pi);
+    }
     ci.arch = host_ci.arch;
     ci.nbits = host_ci.nbits;
     break;

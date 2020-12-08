@@ -461,7 +461,13 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   case compiler::infos_t::ICC:
     return icc(ci.path, tokens, ci, &pi);
   case compiler::infos_t::NVCC: {
-    compiler::infos_t host_ci = compiler::get("c++", &pi);
+    compiler::infos_t host_ci;
+    if (ci.name == "c++" ||
+        pi.compilers.find("c++-host") != pi.compilers.end()) {
+      host_ci = compiler::get("c++-host", &pi);
+    } else {
+      host_ci = compiler::get("c++", &pi);
+    }
     return nvcc(ci, tokens, host_ci, &pi);
   }
   case compiler::infos_t::HIPCC:
@@ -483,13 +489,13 @@ static std::string get_rpath_argument(std::string const &directory,
                                       compiler::infos_t const &ci) {
   switch (ci.type) {
   case compiler::infos_t::None:
-  case compiler::infos_t::NVCC:
     NS2_THROW(std::runtime_error, "Invalid compiler");
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
   case compiler::infos_t::ICC:
   case compiler::infos_t::HIPCC:
+  case compiler::infos_t::NVCC:
   case compiler::infos_t::HCC:
   case compiler::infos_t::DPCpp:
 #if defined(NS2_IS_BSD) || defined(NS2_IS_MACOS)
@@ -713,6 +719,17 @@ gcc_clang(std::string const &compiler,
       ret.push_back("--version");
       return ret;
     }
+
+    // For GCC and Clang there is no need to link against m (math library)
+    // when compiling in C++. It is still needed when compiling C. Worse it
+    // makes Clang++ emit a warning of non used command line parameter.
+    if (arg == "-lm") {
+      if (ci.lang == compiler::infos_t::C) {
+        ret.push_back("-lm");
+      }
+      continue;
+    }
+
     std::vector<std::string> buf =
         translate_single_arg(compiler, args, ci, tokens[i], pi);
     ret.insert(ret.end(), buf.begin(), buf.end());
@@ -1111,7 +1128,6 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   std::vector<std::string> ret;
   std::vector<parser::token_t> host_tokens(1);
   ret.push_back(ci.path);
-  ret.push_back("-x cu");
   ret.push_back("-ccbin " + host_ci.path);
   ret.push_back("-m" + ns2::to_string(ci.nbits));
   std::map<std::string, std::string> args;

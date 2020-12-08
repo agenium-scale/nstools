@@ -45,7 +45,10 @@ static std::string add_comp(parser::infos_t *pi, std::string const &type,
            "  clang, clang++          LLVM Compiler Infrastructure\n"
            "  msvc                    Microsoft Visual C++\n"
            "  armclang, armclang++    ARM Compiler\n"
-           "  icc                     Intel C++ Compiler\n";
+           "  icc                     Intel C/C++ Compiler\n"
+           "  dpcpp                   Intel DPC++ Compiler\n"
+           "  nvcc                    Nvidia CUDA compiler\n"
+           "  hipcc                   ROCm HIP compiler\n";
   }
 
   // Getting here means we want the "normal" behavior of this function

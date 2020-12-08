@@ -610,6 +610,7 @@ gcc_clang(std::string const &compiler,
   args["-g"] = "-g";
   args["-S"] = "-S";
   args["-c"] = "-c";
+  args["-x"] = "-x";
   args["-o"] = "-o";
   args["-Wall"] =
       "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
@@ -721,12 +722,18 @@ gcc_clang(std::string const &compiler,
     }
 
     // For GCC and Clang there is no need to link against m (math library)
-    // when compiling in C++. It is still needed when compiling C. Worse it
-    // makes Clang++ emit a warning of non used command line parameter.
+    // when compiling in C++. It is still needed when compiling C. Worse! it
+    // makes clang++ emit a warning of non used command line parameter.
     if (arg == "-lm") {
       if (ci.lang == compiler::infos_t::C) {
         ret.push_back("-lm");
       }
+      continue;
+    }
+
+    if (arg == "-x") {
+      ret.push_back(handle_x(tokens, i));
+      i++;
       continue;
     }
 
@@ -904,6 +911,16 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
         }
         output = tokens[i + 1].text;
         i++;
+      } else if (arg == "-x") {
+        if (i == tokens.size() - 1) {
+          die("no language given after", tokens[i].cursor);
+        }
+        i++;
+        if (tokens[i].text == "c") {
+          ret.push_back("/TC");
+        } else if (tokens[i].text == "c++") {
+          ret.push_back("/TP");
+        }
       } else {
         std::map<std::string, std::string>::const_iterator it = args.find(arg);
         if (it != args.end()) {
@@ -1031,6 +1048,7 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-S"] = "-S";
   args["-c"] = "-c";
   args["-o"] = "-o";
+  args["-x"] = "-x";
   args["-Wall"] = "-Wall -Wextra -Wconversion -Wsign-conversion";
   // -Wdouble-promotion is not supported by icc
   args["-fPIC"] = "-fPIC";
@@ -1090,6 +1108,7 @@ static std::vector<std::string> icc(std::string const &compiler,
       ffast_math = true;
       continue;
     }
+
     std::vector<std::string> buf =
         translate_single_arg(compiler, args, ci, tokens[i], pi);
     ret.insert(ret.end(), buf.begin(), buf.end());
@@ -1142,6 +1161,7 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   args["-msm_75"] = "-arch=sm_75";
   args["-c"] = "-c";
   args["-o"] = "-o";
+  args["-x"] = "-x";
   args["-shared"] = "-shared";
   args["-S"] = "--ptx";
   args["-g"] = "-g -G -lineinfo";
@@ -1287,6 +1307,7 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-S"] = "-S";
   args["-c"] = "-c";
   args["-o"] = "-o";
+  args["-x"] = "-x";
   args["-Wall"] =
       "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
   args["-fPIC"] = "-fPIC";
@@ -1345,6 +1366,13 @@ hipcc_hcc_dpcpp(std::string const &compiler,
       ret.push_back("--version");
       return ret;
     }
+
+    if (arg == "-x") {
+      ret.push_back(handle_x(tokens, i));
+      i++;
+      continue;
+    }
+
     std::vector<std::string> buf =
         translate_single_arg(compiler, args, ci, tokens[i], pi);
     ret.insert(ret.end(), buf.begin(), buf.end());

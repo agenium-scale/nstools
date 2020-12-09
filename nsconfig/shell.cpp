@@ -122,9 +122,9 @@ static std::string touch(std::vector<parser::token_t> const &tokens) {
     die("touch must have only one argument", tokens[0].cursor);
   }
 #ifdef NS2_IS_MSVC
-  return "echo >" + stringify(ns2::sanitize(tokens[0].text));
+  return "echo >" + stringify(ns2::sanitize(tokens[1].text));
 #else
-  return "touch" + stringify(tokens[0].text);
+  return "touch " + stringify(tokens[1].text);
 #endif
 }
 

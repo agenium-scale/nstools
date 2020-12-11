@@ -762,7 +762,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   ret.push_back("/nologo");
   ret.push_back("/EHsc");
   ret.push_back("/D_CRT_SECURE_NO_WARNINGS");
-
   if (ci.nbits == 32) {
     ret.push_back("/Gv");
   }
@@ -771,27 +770,29 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-std=c89"] = "";
   args["-std=c99"] = "";
   args["-std=c11"] = "";
-  if (ci.version >= 2000) {
-    args["-std=c++98"] = "";
-    args["-std=c++03"] = "";
-    args["-std=c++11"] = "";
+  args["-std=c++98"] = "";
+  args["-std=c++03"] = "";
+  args["-std=c++11"] = "";
+  if (ci.version >= 1911) {
     args["-std=c++14"] = "/std:c++14";
     args["-std=c++17"] = "/std:c++17";
     args["-std=c++20"] = "/std:c++latest";
   } else if (ci.version >= 1900) {
-    args["-std=c++98"] = "/Zc:__cplusplus";
-    args["-std=c++03"] = "/Zc:__cplusplus";
-    args["-std=c++11"] = "/Zc:__cplusplus";
-    args["-std=c++14"] = "/std:c++14 /Zc:__cplusplus";
-    args["-std=c++17"] = "/std:c++latest /Zc:__cplusplus";
-    args["-std=c++20"] = "/std:c++latest /Zc:__cplusplus";
+    args["-std=c++14"] = "/std:c++14";
+    args["-std=c++17"] = "/std:c++latest";
+    args["-std=c++20"] = "/std:c++latest";
   } else {
-    args["-std=c++98"] = "/Zc:__cplusplus";
-    args["-std=c++03"] = "/Zc:__cplusplus";
-    args["-std=c++11"] = "/Zc:__cplusplus";
-    args["-std=c++14"] = "/Zc:__cplusplus";
-    args["-std=c++17"] = "/Zc:__cplusplus";
-    args["-std=c++20"] = "/Zc:__cplusplus";
+    args["-std=c++14"] = "";
+    args["-std=c++17"] = "";
+    args["-std=c++20"] = "";
+  }
+  if (ci.version > 1900) { // MSVC 2017
+    args["-std=c++98"] += " /Zc:__cplusplus";
+    args["-std=c++03"] += " /Zc:__cplusplus";
+    args["-std=c++11"] += " /Zc:__cplusplus";
+    args["-std=c++14"] += " /Zc:__cplusplus";
+    args["-std=c++17"] += " /Zc:__cplusplus";
+    args["-std=c++20"] += " /Zc:__cplusplus";
   }
   args["-O0"] = "/Od";
   args["-O1"] = "/O2";

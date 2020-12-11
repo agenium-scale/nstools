@@ -762,9 +762,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   ret.push_back("/nologo");
   ret.push_back("/EHsc");
   ret.push_back("/D_CRT_SECURE_NO_WARNINGS");
-  if (ci.nbits == 32) {
-    ret.push_back("/Gv");
-  }
 
   std::map<std::string, std::string> args;
   args["-std=c89"] = "";

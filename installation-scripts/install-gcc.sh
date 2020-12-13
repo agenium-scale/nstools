@@ -178,6 +178,12 @@ elif [ "${MAJOR}" == "4" ]; then
   # GCC 4 uses definitions of old header files
   find "${WORK_DIR}/${SRC_DIR}" -iname '*.[ch]' -type f -exec \
       sed -i -e 's/struct ucontext/struct ucontext_t/g' {} +
+  # GCC 4.8.5 has a problem of declaration of libc_name_p
+  MINOR=`echo ${1} | cut -f2 -d'.'`
+  if [ "${MINOR}" == "8" ]; then
+    sed -i 's,__attribute__ ((__gnu_inline__)),// no gnu_inline,g' \
+        ${WORK_DIR}/${SRC_DIR}/gcc/cp/cfns.h
+  fi
   # GCC 4 is not capable of C++11
   CPP_STD="-std=c++98"
 else

@@ -1,5 +1,5 @@
-#!/bin/sh -e
-# Copyright (c) 2019 Agenium Scale
+#!/bin/bash
+# Copyright (c) 2020 Agenium Scale
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,6 +19,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+set -e
+#set -x
+
 # Ask for ROOT password
 printf "ROOT PASSWORD: "
 read -s ROOT_PASSWORD
@@ -30,7 +33,8 @@ mysudo() {
 }
 
 # Set variables
-MODULE_PATH="$(dirname $(module path null))/gcc"
+MODULE_PATH_NULL=`module path null`
+MODULE_PATH="`dirname ${MODULE_PATH_NULL}`/gcc"
 SVN_URL="https://gcc.gnu.org/svn/gcc/trunk" 
 WORK_DIR=tmp
 J="-j$(nproc)"
@@ -150,6 +154,37 @@ if [ -d /usr/include/${TARGET} ]; then
   export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/include/${TARGET}"
 fi
 
+# Specific flags w.r.t wanted version of GCC
+MAJOR=`echo ${1} | cut -f1 -d'.'`
+if [ "${MAJOR}" == "5" ]; then
+  # GCC 5 libsanitizer uses ustat.h which does not exist anymore. As we do
+  # not need this library we simply disable its compilation.
+  CONFIGURE_FLAGS="--disable-libsanitizer"
+  # GCC 5 is capable of C++11
+  CPP_STD="-std=c++11"
+elif [ "${MAJOR}" == "4" ]; then
+  # GCC 4 texi files are not compatible with recent versions of
+  # As we do not need the documentation we empty them.
+  for i in `find "${WORK_DIR}/${SRC_DIR}" -iname '*.texi'`; do
+    echo > ${i}
+  done
+  for i in `find "${WORK_DIR}/${SRC_DIR}" -iname '*.texi.in'`; do
+    echo > ${i}
+  done
+  sed -i -e 's/: s-tm-texi;/: ;/g' ${WORK_DIR}/${SRC_DIR}/gcc/Makefile.in
+  # GCC 4 needs the GCC_VERSION macro to be defined properly
+  CONFIGURE_FLAGS="CFLAGS=-fgnu89-inline --disable-libcilkrts \
+                   --disable-libsanitizer"
+  # GCC 4 uses definitions of old header files
+  find "${WORK_DIR}/${SRC_DIR}" -iname '*.[ch]' -type f -exec \
+      sed -i -e 's/struct ucontext/struct ucontext_t/g' {} +
+  # GCC 4 is not capable of C++11
+  CPP_STD="-std=c++98"
+else
+  CONFIGURE_FLAGS=""
+  CPP_STD="-std=c++11"
+fi
+
 # Configure, make and install
 BUILD_DIR="${WORK_DIR}/${SRC_DIR}/build"
 mkdir -p ${BUILD_DIR}
@@ -159,6 +194,7 @@ mkdir -p ${BUILD_DIR}
                                  --with-mpc=${PREFIX} \
                                  --disable-multiarch \
                                  --disable-multilib \
+                                 ${CONFIGURE_FLAGS} \
                                  --enable-languages=c,c++,fortran \
                                  --disable-bootstrap \
                                  --build=${TARGET} \
@@ -222,5 +258,5 @@ int main() {
 }
 EOF
 
-(cd ${WORK_DIR}/${SRC_DIR} && ${GCC} -std=c++11 -Wall -Wextra tmp.cpp)
+(cd ${WORK_DIR}/${SRC_DIR} && ${GCC} ${CPP_STD} -Wall -Wextra tmp.cpp)
 (cd ${WORK_DIR}/${SRC_DIR} && ./a.out)

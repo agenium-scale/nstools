@@ -615,6 +615,7 @@ gcc_clang(std::string const &compiler,
   args["-Wall"] =
       "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
   args["-fPIC"] = "-fPIC";
+  args["-static-libstdc++"] = "-static-libstdc++ -static-libgcc";
   args["-msse"] = "-msse";
   args["-msse2"] = "-msse2";
   args["-msse3"] = "-msse3";
@@ -801,6 +802,7 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-o"] = ""; // dealt with later because it's complicated for MSVC
   args["-Wall"] = "/W3";
   args["-fPIC"] = "";
+  args["-static-libstdc++"] = "/MT";
   if (ci.nbits == 32) {
     args["-msse"] = "/arch:SSE";
     args["-msse2"] = "/arch:SSE2";
@@ -1048,6 +1050,7 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-Wall"] = "-Wall -Wextra -Wconversion -Wsign-conversion";
   // -Wdouble-promotion is not supported by icc
   args["-fPIC"] = "-fPIC";
+  args["-static-libstdc++"] = "-static-libstdc++ -static-libgcc";
   args["-msse"] = "-msse";
   args["-msse2"] = "-msse2";
   args["-msse3"] = "-msse3";
@@ -1307,6 +1310,7 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-Wall"] =
       "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
   args["-fPIC"] = "-fPIC";
+  args["-static-libstdc++"] = "-static-libstdc++ -static-libgcc";
   args["-msse"] = "";
   args["-msse2"] = "";
   args["-msse3"] = "";

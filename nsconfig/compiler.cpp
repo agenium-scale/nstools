@@ -241,13 +241,13 @@ static void automatic_detection(infos_t *ci, std::string const &name,
       goto lbl_error_compiler;
     }
 #else
-    // On Linux we start by Clang, then GCC
-    if (can_exec("clang++ --version")) {
-      ci->path = "clang++";
-      ci->type = infos_t::Clang;
-    } else if (can_exec("g++ --version")) {
+    // On Linux we start by GCC, then Clang
+    if (can_exec("g++ --version")) {
       ci->path = "g++";
-      ci->type = compiler::infos_t::GCC;
+      ci->type = infos_t::GCC;
+    } else if (can_exec("clang++ --version")) {
+      ci->path = "clang++";
+      ci->type = compiler::infos_t::Clang;
     } else {
       goto lbl_error_compiler;
     }

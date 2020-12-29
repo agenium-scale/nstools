@@ -39,18 +39,19 @@ namespace ns2 {
 // ----------------------------------------------------------------------------
 
 #ifdef NS2_DEBUG
-#define NS2_EXCEPTION_BACKTRACE ns2::backtrace()
+#define NS2_EXCEPTION_BACKTRACE                                               \
+  std::cerr << "Thrown at " << __FILE__ << ":" << __LINE__ << std::endl       \
+            << ns2::backtrace() << std::endl;
 #else
-#define NS2_EXCEPTION_BACKTRACE ""
+#define NS2_EXCEPTION_BACKTRACE
 #endif
 
 #ifdef NS2_NO_EXCEPTION
 
 #define NS2_THROW(type, msg)                                                  \
   do {                                                                        \
-    std::cerr << (msg) << std::endl                                           \
-              << "Thrown at " << __FILE__ << ":" << __LINE__ << std::endl     \
-              << NS2_EXCEPTION_BACKTRACE << std::endl;                        \
+    std::cerr << (msg) << std::endl;                                          \
+    NS2_EXCEPTION_BACKTRACE                                                   \
     abort();                                                                  \
   } while (0)
 
@@ -59,9 +60,8 @@ namespace ns2 {
 #define NS2_THROW(type, msg)                                                  \
   do {                                                                        \
     std::ostringstream os;                                                    \
-    os << (msg) << std::endl                                                  \
-       << "Thrown at " << __FILE__ << ":" << __LINE__ << std::endl            \
-       << NS2_EXCEPTION_BACKTRACE << std::endl;                               \
+    os << (msg) << std::endl;                                                 \
+    NS2_EXCEPTION_BACKTRACE                                                   \
     throw type(os.str());                                                     \
   } while (0)
 

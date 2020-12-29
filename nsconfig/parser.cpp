@@ -1341,9 +1341,9 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
 
   // Check for non closed begin_translate_if
   if (pi.translate == false) {
-    std::cerr << "nsconfig: error: unfinished begin_translate_if on line "
-              << pi.translate_cursor.lineno << std::endl;
-    exit(EXIT_FAILURE);
+    NS2_THROW(std::runtime_error,
+              "unfinished begin_translate_if on line " +
+                  ns2::to_string(pi.translate_cursor.lineno));
   }
 
   // Check for unused variables
@@ -1357,16 +1357,18 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
       unused_vars.push_back(it->first);
     }
   }
-  for (size_t i = 0; i < unused_vars.size(); i++) {
-    std::cerr << "nsconfig: error: variable \"" << unused_vars[i]
-              << "\" defined but not used";
-    std::string suggestions(get_first_suggestions(
-        ns2::levenshtein_sort(used_vars, unused_vars[i])));
-    if (suggestions.size() > 0) {
-      std::cerr << ", did you mean " << suggestions << "?";
+  if (unused_vars.size() > 0) {
+    std::ostringstream os;
+    for (size_t i = 0; i < unused_vars.size(); i++) {
+      os << "variable \"" << unused_vars[i] << "\" defined but not used";
+      std::string suggestions(get_first_suggestions(
+          ns2::levenshtein_sort(used_vars, unused_vars[i])));
+      if (suggestions.size() > 0) {
+        os << ", did you mean " << suggestions << "?";
+      }
+      os << std::endl;
     }
-    std::cerr << std::endl;
-    exit(EXIT_FAILURE);
+    NS2_THROW(std::runtime_error, os.str());
   }
 
   if (ret.size() == 0) {
@@ -1464,6 +1466,7 @@ void die(std::string const &msg, cursor_t const &cursor) {
   int i1 = minimum(int(cursor.source.size()), cursor.col + 30);
   std::string source(cursor.source.begin() + i0, cursor.source.begin() + i1);
   int col = cursor.col - i0;
+  std::ostringstream os;
 
   if (source.size() > 0) {
     std::string when;
@@ -1478,26 +1481,23 @@ void die(std::string const &msg, cursor_t const &cursor) {
       when = "after variable expansion";
       break;
     }
-    std::cerr << std::endl
-              << "nsconfig: error: " << cursor.filename << ":" << cursor.lineno
-              << ": " << when << std::endl
-              << std::endl;
+    os << cursor.filename << ":" << cursor.lineno << ": " << when << std::endl
+       << std::endl;
     if (i0 > 0) {
-      std::cerr << "... ";
+      os << "... ";
       col += 4;
     }
-    std::cerr << source;
+    os << source;
     if (i1 < int(cursor.source.size())) {
-      std::cerr << "... ";
+      os << "... ";
     }
-    std::cerr << std::endl
-              << std::string(size_t(col), ' ') << "^~~~~ " << msg << std::endl
-              << std::endl;
+    os << std::endl
+       << std::string(size_t(col), ' ') << "^~~~~ " << msg << std::endl
+       << std::endl;
   } else {
-    std::cerr << "nsconfig: error: " << cursor.filename << ":" << cursor.lineno
-              << ": " << msg << std::endl;
+    os << cursor.filename << ":" << cursor.lineno << ": " << msg << std::endl;
   }
-  exit(EXIT_FAILURE);
+  NS2_THROW(std::runtime_error, os.str());
 }
 
 // ----------------------------------------------------------------------------

@@ -34,12 +34,23 @@
 #define VERBOSITY_DEBUG 2
 
 #define OUTPUT std::cout << "-- "
-#define WARNING                                                               \
-  std::cout << "--    .\n"                                                    \
-            << "--   / \\\n"                                                  \
-            << "--  / ! \\\n"                                                 \
-            << "-- ·-----·\n"                                               \
-            << "-- WARNING "
+#define WARNING std::cout << "WW "
+
+inline void output_multiline(std::string const &msg) {
+  if (msg.size() == 0) {
+    OUTPUT << "|" << std::endl;
+    return;
+  }
+  size_t i = 0;
+  for (; i < msg.size(); i++) {
+    OUTPUT << "| ";
+    for (; i < msg.size() && msg[i] != '\n'; i++) {
+      std::cout << msg[i];
+    }
+    std::cout << '\n';
+  }
+  std::cout << std::flush;
+}
 
 #define NINJA_BUILD_SCRIPT "_ninja_build_scripts"
 

@@ -26,6 +26,7 @@
 #include <cstdlib>
 #include <map>
 #include <ns2/process.hpp>
+#include <ns2/exception.hpp>
 #include <ns2/fs.hpp>
 #include <string>
 
@@ -42,21 +43,40 @@ std::ostream &operator<<(std::ostream &os, const infos_t &ci) {
 
 // ----------------------------------------------------------------------------
 
-std::string get_correpsonding_cpp_comp(std::string const &c_comp) {
-  if (c_comp == "gcc") {
+std::string get_corresponding_cpp_comp(std::string const &suite) {
+  if (suite == "gcc") {
     return "g++";
-  } else if (c_comp == "cl") {
+  } else if (suite == "msvc") {
     return "cl";
-  } else if (c_comp == "clang") {
+  } else if (suite == "llvm") {
     return "clang++";
-  } else if (c_comp == "armclang") {
+  } else if (suite == "armclang") {
     return "armclang++";
-  } else if (c_comp == "icc") {
+  } else if (suite == "icc") {
     return "icc";
-  } else if (c_comp == "hipcc") {
+  } else if (suite == "rocm") {
     return "hipcc";
-  } else if (c_comp == "nvcc") {
+  } else if (suite == "cuda" || suite == "cuda+gcc" || suite == "cuda+clang" ||
+             suite == "cuda+msvc") {
     return "nvcc";
+  } else {
+    return "";
+  }
+}
+
+// ----------------------------------------------------------------------------
+
+std::string get_corresponding_c_comp(std::string const &suite) {
+  if (suite == "gcc") {
+    return "gcc";
+  } else if (suite == "msvc") {
+    return "cl";
+  } else if (suite == "llvm") {
+    return "clang";
+  } else if (suite == "armclang") {
+    return "armclang";
+  } else if (suite == "icc") {
+    return "icc";
   } else {
     return "";
   }
@@ -115,11 +135,14 @@ void get_version_from_string(compiler::infos_t *ci_,
 
 void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
   infos_t &ci = *ci_;
-  if (str == "arm") {
-    ci.arch = compiler::infos_t::ARM;
+  if (str == "armel" || str == "arm") {
+    ci.arch = compiler::infos_t::ARMEL;
+    ci.nbits = 32;
+  } else if (str == "armhf") {
+    ci.arch = compiler::infos_t::ARMHF;
     ci.nbits = 32;
   } else if (str == "aarch64") {
-    ci.arch = compiler::infos_t::ARM;
+    ci.arch = compiler::infos_t::AARCH64;
     ci.nbits = 64;
   } else if (str == "x86") {
     ci.arch = compiler::infos_t::Intel;
@@ -127,6 +150,8 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
   } else if (str == "x86_64") {
     ci.arch = compiler::infos_t::Intel;
     ci.nbits = 64;
+  } else {
+    NS2_THROW(std::runtime_error, "Invalid architecture");
   }
 }
 
@@ -177,19 +202,28 @@ int get_type_and_lang(infos_t *ci, std::string const &str) {
 
 // ----------------------------------------------------------------------------
 
-static bool can_exec(std::string const &str) {
+static bool can_exec(std::string const &str, int verbosity) {
 #ifdef NS2_IS_MSVC
   std::string buf(str + " 1>nul 2>nul");
 #else
   std::string buf(str + " 1>/dev/null 2>/dev/null");
 #endif
-  return system(buf.c_str()) == 0;
+  int code = system(buf.c_str());
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Executing command: " << buf << std::endl;
+    OUTPUT << "Return code is " << code << std::endl;
+  }
+  return code == 0;
 }
 
 // ----------------------------------------------------------------------------
 
 static void automatic_detection(infos_t *ci, std::string const &name,
                                 int verbosity) {
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Attempting automatic detection for '" << name << "'"
+           << std::endl;
+  }
   if (name == "cc") {
     ci->lang = compiler::infos_t::C;
     if (verbosity >= VERBOSITY_NORMAL) {
@@ -197,13 +231,13 @@ static void automatic_detection(infos_t *ci, std::string const &name,
     }
 #ifdef NS2_IS_MSVC
     // On Windows we start by MSVC, then Clang, then mingw
-    if (can_exec("cl")) {
+    if (can_exec("cl", verbosity)) {
       ci->path = "cl";
       ci->type = infos_t::MSVC;
-    } else if (can_exec("clang --version")) {
+    } else if (can_exec("clang --version", verbosity)) {
       ci->path = "clang";
       ci->type = infos_t::Clang;
-    } else if (can_exec("gcc --version")) {
+    } else if (can_exec("gcc --version", verbosity)) {
       ci->path = "gcc";
       ci->type = compiler::infos_t::GCC;
     } else {
@@ -211,30 +245,30 @@ static void automatic_detection(infos_t *ci, std::string const &name,
     }
 #else
     // On Linux we start by GCC, then Clang
-    if (can_exec("gcc --version")) {
+    if (can_exec("gcc --version", verbosity)) {
       ci->path = "gcc";
       ci->type = infos_t::GCC;
-    } else if (can_exec("clang --version")) {
+    } else if (can_exec("clang --version", verbosity)) {
       ci->path = "clang";
       ci->type = compiler::infos_t::Clang;
     } else {
       goto lbl_error_compiler;
     }
 #endif
-  } else if (name == "c++" || name == "c++-host") {
+  } else if (name == "c++" || name == "cuda-host-c++") {
     ci->lang = compiler::infos_t::CPP;
     if (verbosity >= VERBOSITY_NORMAL) {
       OUTPUT << "Automatic C++ compiler detection" << std::endl;
     }
 #ifdef NS2_IS_MSVC
     // On Windows we start by MSVC, then Clang, then mingw
-    if (can_exec("cl")) {
+    if (can_exec("cl", verbosity)) {
       ci->path = "cl";
       ci->type = infos_t::MSVC;
-    } else if (can_exec("clang++ --version")) {
+    } else if (can_exec("clang++ --version", verbosity)) {
       ci->path = "clang++";
       ci->type = infos_t::Clang;
-    } else if (can_exec("g++ --version")) {
+    } else if (can_exec("g++ --version", verbosity)) {
       ci->path = "g++";
       ci->type = compiler::infos_t::GCC;
     } else {
@@ -242,10 +276,10 @@ static void automatic_detection(infos_t *ci, std::string const &name,
     }
 #else
     // On Linux we start by GCC, then Clang
-    if (can_exec("g++ --version")) {
+    if (can_exec("g++ --version", verbosity)) {
       ci->path = "g++";
       ci->type = infos_t::GCC;
-    } else if (can_exec("clang++ --version")) {
+    } else if (can_exec("clang++ --version", verbosity)) {
       ci->path = "clang++";
       ci->type = compiler::infos_t::Clang;
     } else {
@@ -259,8 +293,7 @@ static void automatic_detection(infos_t *ci, std::string const &name,
   return;
 
 lbl_error_compiler:
-  OUTPUT << "Cannot find a viable compiler" << std::endl;
-  exit(EXIT_FAILURE);
+  NS2_THROW(std::runtime_error, "cannot find a viable compiler");
 }
 
 // ----------------------------------------------------------------------------
@@ -322,7 +355,8 @@ static int get_host_nbits() {
 static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
                                              std::string const &dirname,
                                              std::string const &prefix,
-                                             std::string const &src) {
+                                             std::string const &src,
+                                             int verbosity) {
 
   // Compute file extension and proper include file
   std::string extension, include_stdio;
@@ -339,27 +373,47 @@ static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
 
   // Dump code for computing version
   std::string src_filename(prefix + extension);
-  ns2::write_file(ns2::join_path(dirname, src_filename),
-                  "#include <" + include_stdio + ">\nint main() {\n" +
-                  src + "\nfflush(stdout); return 0; }");
+  std::string src_pathname(ns2::join_path(dirname, src_filename));
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Content of '" << src_pathname << "':" << std::endl;
+  }
+  std::string file_content("#include <" + include_stdio + ">\nint main() {\n" +
+                           src + "\nfflush(stdout); return 0; }");
+  if (verbosity >= VERBOSITY_DEBUG) {
+    output_multiline(file_content);
+  }
+  ns2::write_file(src_pathname, file_content);
 
   // Try and compile the code
   std::string aout_filename(prefix + extension + ".exe");
   std::string cmdline("cd \"" + ns2::sanitize(dirname) + "\" && ");
   if (ci.type == compiler::infos_t::MSVC) {
-    cmdline += ci.path + " " + src_filename + " /Fe" + aout_filename +
-               " 1>nul 2>nul";
+    cmdline += ci.path + " " + src_filename + " /Fe" + aout_filename + " 2>&1";
   } else {
-    cmdline += ci.path + " " + src_filename + " -o " + aout_filename +
-               " 1>/dev/null 2>/dev/null";
+    cmdline += ci.path + " " + src_filename + " -o " + aout_filename + " 2>&1";
   }
-  if (std::system(cmdline.c_str()) != 0) {
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Compilation line: " << cmdline << std::endl;
+  }
+  std::pair<std::string, int> ret = ns2::popen(cmdline);
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Output of compilation:" << std::endl;
+    output_multiline(ret.first);
+    OUTPUT << "Return code is " << ret.second << std::endl;
+  }
+  if (ret.second != 0) {
     return std::pair<std::string, int>(std::string(), 1);
   }
 
   // Execute binary and finally get output
-  std::pair<std::string, int> ret = ns2::popen(
+  std::string aout_pathname(
       ns2::sanitize(ns2::join_path(dirname, aout_filename)));
+  ret = ns2::popen(aout_pathname);
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Output of '" << aout_pathname << "'" << std::endl;
+    output_multiline(ret.first);
+    OUTPUT << "Return code is " << ret.second << std::endl;
+  }
   return std::pair<std::string, int>(ret.first, (ret.second ? 2 : 0));
 }
 
@@ -368,6 +422,7 @@ static std::pair<std::string, int> popen_src(compiler::infos_t const &ci,
 static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
   compiler::infos_t &ci = *ci_;
+  int verbosity = pi.verbosity;
 
   // Getting the version of the compiler is easy. We compile and run a piece
   // of code that computes the version. Thanks to sjubertie for the idea. It
@@ -411,26 +466,31 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   ns2::mkdir(COMPILER_INFOS_DIR);
 
   // Get compiler version
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Attempting to find compiler version" << std::endl;
+  }
   std::pair<std::string, int> code =
       popen_src(ci, COMPILER_INFOS_DIR, "version",
-                "printf(\"%li\", " + version_formula + ");");
+                "printf(\"%li\", " + version_formula + ");", verbosity);
   if (code.second) {
-    OUTPUT << "Cannot find " << get_type_str(ci.type) << " version"
-           << std::endl;
-    exit(EXIT_FAILURE);
+    NS2_THROW(std::runtime_error,
+              "Cannot find " + get_type_str(ci.type) + " version");
   }
   ci.version = atoi(code.first.c_str());
 
   // Get compiler target architecture
+  if (verbosity >= VERBOSITY_DEBUG) {
+    OUTPUT << "Attempting to find compiler target architecture" << std::endl;
+  }
   switch(ci.type) {
   case infos_t::NVCC: {
     // For NVCC it depends on the host compiler and by default the
-    // host compiler we choose for nvcc is c++, the one that can be given at
-    // nsconfig command line.
+    // host compiler we choose for nvcc is cuda-host-c++ if nvcc is c++,
+    // otherwise it is c++.
     compiler::infos_t host_ci;
     if (ci.name == "c++" ||
-        pi.compilers.find("c++-host") != pi.compilers.end()) {
-      host_ci = get("c++-host", &pi);
+        pi.compilers.find("cuda-host-c++") != pi.compilers.end()) {
+      host_ci = get("cuda-host-c++", &pi);
     } else {
       host_ci = get("c++", &pi);
     }
@@ -446,11 +506,16 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case infos_t::ICC:
   case infos_t::HIPCC:
   case infos_t::DPCpp:
-    code = popen_src(ci, COMPILER_INFOS_DIR, "target",
+    code = popen_src(
+        ci, COMPILER_INFOS_DIR, "target",
         "#if defined(_M_ARM_ARMV7VE) || defined(_M_ARM) || "
         "(__ARM_ARCH > 0 && __ARM_ARCH <= 7) || "
         "defined(__ARMEL__) || defined(__ARM_32BIT_STATE)\n"
-        "printf(\"arm\");\n"
+        "#if _MSC_VER > 0 || (defined(__ARM_ARCH) && __ARM_ARCH <= 6)\n"
+        "printf(\"armel\");\n"
+        "#else\n"
+        "printf(\"armhf\");\n"
+        "#endif\n"
         "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "
         "|| defined(__AARCH64EL__) || defined(__ARM_64BIT_STATE)\n"
         "printf(\"aarch64\");\n"
@@ -461,11 +526,10 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "#elif defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) "
         "|| defined(__amd64) || defined(_M_X64)\n"
         "printf(\"x86_64\");\n"
-        "#endif");
+        "#endif", verbosity);
     if (code.second) {
-      OUTPUT << "Cannot find " << get_type_str(ci.type) << " target"
-             << std::endl;
-      exit(EXIT_FAILURE);
+      NS2_THROW(std::runtime_error, "Cannot find " + get_type_str(ci.type) +
+                                        " target architecture");
     }
     get_archi_from_string(&ci, code.first);
     break;
@@ -485,19 +549,26 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
 infos_t get(std::string name, parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
   infos_t ci;
+  int verbosity = pi.verbosity;
 
   // do we already have encountered this compiler?
   list_t::iterator it = pi.compilers.find(name);
   if (it == pi.compilers.end()) {
+    if (verbosity >= VERBOSITY_DEBUG) {
+      OUTPUT << "Requesting new compiler: '" << name << "'" << std::endl;
+    }
     ci.name = name;
     ci.fully_filled = false;
-    automatic_detection(&ci, name, pi.verbosity);
+    automatic_detection(&ci, name, verbosity);
   } else {
     ci = it->second;
   }
 
   // if ci was not fully filled then fill it
   if (!ci.fully_filled) {
+    if (verbosity >= VERBOSITY_DEBUG) {
+      OUTPUT << "Compiler: '" << name << "' is not fully known" << std::endl;
+    }
     set_version_arch(&ci, &pi);
     ci.fully_filled = true;
     pi.compilers[name] = ci;

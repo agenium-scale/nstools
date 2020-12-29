@@ -463,8 +463,8 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   case compiler::infos_t::NVCC: {
     compiler::infos_t host_ci;
     if (ci.name == "c++" ||
-        pi.compilers.find("c++-host") != pi.compilers.end()) {
-      host_ci = compiler::get("c++-host", &pi);
+        pi.compilers.find("cuda-host-c++") != pi.compilers.end()) {
+      host_ci = compiler::get("cuda-host-c++", &pi);
     } else {
       host_ci = compiler::get("c++", &pi);
     }
@@ -640,8 +640,13 @@ gcc_clang(std::string const &compiler,
   args["-mavx512_knl"] = "-mavx512f -mavx512pf -mavx512er -mavx512cd";
   args["-mavx512_skylake"] =
       "-mavx512f -mavx512dq -mavx512cd -mavx512bw -mavx512vl";
-  args["-mneon64"] = "-mfpu=neon";
-  args["-mneon128"] = "-mfpu=neon";
+  if (ci.arch == compiler::infos_t::ARMEL) {
+    args["-mneon64"] = "-mfloat-abi=hard -mfpu=neon";
+    args["-mneon128"] = "-mfloat-abi=hard -mfpu=neon";
+  } else {
+    args["-mneon64"] = "-mfpu=neon";
+    args["-mneon128"] = "-mfpu=neon";
+  }
   args["-maarch64"] = "";
   args["-msve"] = "-march=armv8.2-a+sve";
   args["-msve128"] = "-march=armv8.2-a+sve -msve-vector-bits=128";
@@ -676,13 +681,15 @@ gcc_clang(std::string const &compiler,
   if (ci.arch == compiler::infos_t::Intel) {
     args["-mfma"] = "-mfma";
     args["-mfp16"] = "-mf16c";
-  } else if (ci.arch == compiler::infos_t::ARM) {
+  } else if (ci.arch == compiler::infos_t::ARMEL) {
     args["-mfma"] = "";
-    if (ci.nbits == 32) {
-      args["-mfp16"] = "";
-    } else {
-      args["-mfp16"] = "-march=native+fp16";
-    }
+    args["-mfp16"] = "";
+  } else if (ci.arch == compiler::infos_t::ARMHF) {
+    args["-mfma"] = "";
+    args["-mfp16"] = "";
+  } else if (ci.arch == compiler::infos_t::AARCH64) {
+    args["-mfma"] = "";
+    args["-mfp16"] = "-mfp16-format=ieee -march=armv8.2-a+fp16";
   }
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
@@ -820,8 +827,13 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-mavx2"] = "/arch:AVX2";
   args["-mavx512_knl"] = "/arch:AVX512";
   args["-mavx512_skylake"] = "/arch:AVX512";
-  args["-mneon64"] = "";
-  args["-mneon128"] = "";
+  if (ci.arch == compiler::infos_t::ARMEL) {
+    args["-mneon64"] = "/arch:VFPv4";
+    args["-mneon128"] = "/arch:VFPv4";
+  } else {
+    args["-mneon64"] = "";
+    args["-mneon128"] = "";
+  }
   args["-maarch64"] = "";
   args["-msve"] = "";
   args["-msve128"] = "";
@@ -1383,6 +1395,19 @@ hipcc_hcc_dpcpp(std::string const &compiler,
 
 // ----------------------------------------------------------------------------
 
+bool command_is_compiler(std::string const &cmd) {
+  if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
+      cmd == "g++" || cmd == "clang" || cmd == "clang++" || cmd == "mingw" ||
+      cmd == "armclang" || cmd == "armclang++" || cmd == "icc" ||
+      cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" || cmd == "dpcpp" ||
+      cmd == "cuda-host-c++") {
+    return true;
+  }
+  return false;
+}
+
+// ----------------------------------------------------------------------------
+
 static std::string single_command(std::vector<parser::token_t> const &tokens,
                                   parser::infos_t *pi_) {
   parser::infos_t &pi = *pi_;
@@ -1407,11 +1432,7 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
     return if_(tokens, &pi);
   } else if (cmd == "ar") {
     return ar(tokens);
-  } else if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
-             cmd == "g++" || cmd == "clang" || cmd == "clang++" ||
-             cmd == "mingw" || cmd == "armclang" || cmd == "armclang++" ||
-             cmd == "icc" || cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" ||
-             cmd == "dpcpp") {
+  } else if (command_is_compiler(cmd)) {
     compiler::infos_t ci = compiler::get(cmd, &pi);
     return ns2::join(comp(ci, tokens, &pi), " ");
   } else if (pi.action == parser::infos_t::Permissive) {

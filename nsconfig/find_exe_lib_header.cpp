@@ -93,11 +93,10 @@ void find_exe(parser::variables_t *variables, std::string const &var,
              << std::endl;
     }
   } else {
-    if (verbosity >= VERBOSITY_NORMAL) {
+    if (verbosity >= VERBOSITY_NORMAL && !die_on_not_found) {
       OUTPUT << "Program '" << prog_name << "' not found" << std::endl;
-    }
-    if (die_on_not_found) {
-      exit(EXIT_FAILURE);
+    } else {
+      NS2_THROW(std::runtime_error, "Program '" + prog_name + "' not found");
     }
   }
   parser::add_variable(variables, var + ".dir", df.first, true, true);
@@ -126,11 +125,10 @@ void find_header(parser::variables_t *variables, std::string const &var,
     parser::add_variable(variables, var + ".flags", flags, true, true);
     parser::add_variable(variables, var + ".cflags", flags, true, true);
   } else {
-    if (verbosity >= VERBOSITY_NORMAL) {
+    if (verbosity >= VERBOSITY_NORMAL && !die_on_not_found) {
       OUTPUT << "Header '" << header_path << "' not found" << std::endl;
-    }
-    if (die_on_not_found) {
-      exit(EXIT_FAILURE);
+    } else {
+      NS2_THROW(std::runtime_error, "Header '" + header_path + "' not found");
     }
     parser::add_variable(variables, var + ".dir", "", true, true);
     parser::add_variable(variables, var + ".flags", "", true, true);
@@ -241,11 +239,10 @@ void find_lib(parser::variables_t *variables, rule_desc_t *rd,
     parser::add_variable(variables, var + ".cflags", cflags, true, true);
     parser::add_variable(variables, var + ".ldflags", ldflags, true, true);
   } else {
-    if (verbosity >= VERBOSITY_NORMAL) {
+    if (verbosity >= VERBOSITY_NORMAL && !die_on_not_found) {
       OUTPUT << "Library '" << lib_name << "' not found" << std::endl;
-    }
-    if (die_on_not_found) {
-      exit(EXIT_FAILURE);
+    } else {
+      NS2_THROW(std::runtime_error, "Library '" + lib_name + "' not found");
     }
     parser::add_variable(variables, var + ".header_dir", "", true, true);
     parser::add_variable(variables, var + ".lib_dir", "", true, true);

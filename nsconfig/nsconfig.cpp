@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2019 Agenium Scale
+// Copyright (c) 2020 Agenium Scale
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -34,74 +34,76 @@
 
 // ----------------------------------------------------------------------------
 
-static std::string add_comp(parser::infos_t *pi, std::string const &type,
-                            std::string const &path, std::string const &name,
-                            std::string const &version = std::string(),
-                            std::string const &archi = std::string()) {
-  // This is à la C, do not want to have another function just for that...
-  if (pi == NULL) {
-    return "Supported compilers:\n"
-           "  gcc, g++                GNU Compiler Collection\n"
-           "  clang, clang++          LLVM Compiler Infrastructure\n"
-           "  msvc                    Microsoft Visual C++\n"
-           "  armclang, armclang++    ARM Compiler\n"
-           "  icc                     Intel C/C++ Compiler\n"
-           "  dpcpp                   Intel DPC++ Compiler\n"
-           "  nvcc                    Nvidia CUDA compiler\n"
-           "  hipcc                   ROCm HIP compiler\n";
-  }
-
-  // Getting here means we want the "normal" behavior of this function
-  compiler::infos_t ci;
-  if (compiler::get_type_and_lang(&ci, type) == -1) {
-    return "unknown compiler type: \"" + type + "\"";
-  }
-  ci.name = name;
-  ci.path = path;
-  if (version.size() > 0 && archi.size()) {
-    compiler::get_version_from_string(&ci, ns2::split(version, '.'));
-    compiler::get_archi_from_string(&ci, archi);
-    ci.fully_filled = true;
-  } else {
-    ci.fully_filled = false;
-  }
-  pi->compilers[name] = ci;
-  return std::string();
-}
-
-// ----------------------------------------------------------------------------
-
 static void help(FILE *out) {
-#define P(msg) fputs(msg "\n", out)
-  P("usage: nsconfig [OPTIONS]... DIRECTORY");
-  P("Configure project for compilation.");
-  P("");
-  P("  -v                   verbose mode");
-  P("  -nodev               Build system will never call nsconfig");
-  P("  -DVAR=VALUE          Set value of variable VAR to VALUE");
-  P("  -list-vars           List project specific variable");
-  P("  -GBUILD_SYSTEM       Produce files for build system BUILD_SYSTEM");
-  P("  -Ghelp               List supported build systems");
-  P("  -oOUTPUT             Output to OUTPUT instead of default");
-  P("  -comp=SUITE          Use compiler SUITE for both C and C++");
-  P("  -ccomp=SUITE,PATH[,VERSION[,ARCHI]]");
-  P("                       Use PATH as default C compiler from suite SUITE");
-  P("                       If VERSION and/or ARCHI are given, nsconfig");
-  P("                       try to determine those. This is useful for");
-  P("                       cross compiling, ARCHI must be in { x86, x86_64,");
-  P("                       arm, aarch64 }");
-  P("  -ccomp=help          List supported C compilers");
-  P("  -cppcomp=SUITE,PATH[,VERSION[,ARCHI]]");
-  P("                       Use PATH as default C++ compiler from suite "
-    "SUITE");
-  P("                       If VERSION and/or ARCHI are given, nsconfig");
-  P("                       try to determine those. This is useful for");
-  P("                       cross compiling, ARCHI must be in { x86, x86_64,");
-  P("                       arm, aarch64 }");
-  P("  -cppcomp=help        List supported C++ compilers");
-  P("  -prefix=PREFIX       Set prefix for installation to PREFIX");
-  P("  -h, --help           Print the current text");
-#undef P
+  // clang-format off
+  fputs(
+  "usage: nsconfig [OPTIONS]... DIRECTORY\n"
+  "Configure project for compilation.\n"
+  "\n"
+  "  -v              verbose mode, useful for debugging\n"
+  "  -nodev          Build system will never call nsconfig\n"
+  "  -DVAR=VALUE     Set value of variable VAR to VALUE\n"
+  "  -list-vars      List project specific variable\n"
+  "  -GBUILD_SYSTEM  Produce files for build system BUILD_SYSTEM\n"
+  "                  Supported BUILD_SYSTEM:\n"
+  "                    make       POSIX Makefile\n"
+  "                    gnumake    GNU Makefile\n"
+  "                    nmake      Microsot Visual Studio NMake Makefile\n"
+  "                    ninja      Ninja build file (this is the default)\n"
+  "                    list-vars  List project specific variables\n"
+  "  -oOUTPUT        Output to OUTPUT instead of default\n"
+  "  -suite=SUITE    Use compilers from SUITE as default ones\n"
+  "                  Supported SUITE:\n"
+  "                    gcc       The GNU compiler collection\n"
+  "                    msvc      Microsoft C and C++ compiler\n"
+  "                    llvm      The LLVM compiler infrastructure\n"
+  "                    armclang  Arm suite of compilers based on LLVM\n"
+  "                    icc       Intel C amd C++ compiler\n"
+  "                    rocm      Radeon Open Compute compilers\n"
+  "                    cuda, cuda+gcc, cuda+clang, cuda+msvc\n"
+  "                              Nvidia CUDA C++ compiler\n"
+  "  -comp=COMMAND,COMPILER[,PATH[,VERSION[,ARCHI]]]\n"
+  "                  Use COMPILER when COMMAND is invoked for compilation\n"
+  "                  If VERSION and/or ARCHI are not given, nsconfig will\n"
+  "                  try to determine those. This is useful for cross\n"
+  "                  compiling and/or setting the CUDA host compiler.\n"
+  "                  COMMAND must be in { cc, c++, gcc, g++, cl, icc, nvcc,\n"
+  "                  hipcc, hcc, clang, clang++, armclang, armclang++,\n"
+  "                  cuda-host-c++ } ;\n"
+  "                  VERSION is compiler dependant. Note that VERSION\n"
+  "                  can be set to only major number(s) in which case\n"
+  "                  nsconfig fill missing numbers with zeros.\n"
+  "                  Supported ARCHI:\n"
+  "                    x86      Intel 32-bits ISA\n"
+  "                    x86_64   Intel/AMD 64-bits ISA\n"
+  "                    armel    ARMv5 and ARMv6 32-bits ISA\n"
+  "                    armhf    ARMv7 32-bits ISA\n"
+  "                    aarch64  ARM 64-bits ISA\n"
+  "                  Supported COMPILER:\n"
+  "                    gcc, g++              GNU Compiler Collection\n"
+  "                    clang, clang++        LLVM Compiler Infrastructure\n"
+  "                    msvc, cl              Microsoft Visual C++\n"
+  "                    armclang, armclang++  ARM Compiler\n"
+  "                    icc                   Intel C/C++ Compiler\n"
+  "                    dpcpp                 Intel DPC++ Compiler\n"
+  "                    nvcc                  Nvidia CUDA compiler\n"
+  "                    hipcc                 ROCm HIP compiler\n"
+  "  -prefix=PREFIX  Set path for installation to PREFIX\n"
+  "  -h, --help      Print the current help\n"
+  "\n"
+  "NOTE: Nvidia CUDA compiler (nvcc) needs a host compiler. Usually on\n"
+  "      Linux systems it is GCC while on Windows systems it is MSVC.\n"
+  "      If nvcc is chosen as the default C++ compiler via the -suite\n"
+  "      switch, then its host compiler can be invoked in compilation\n"
+  "      commands with 'cuda-host-c++'. The latter defaults to GCC on Linux\n"
+  "      systems and MSVC on Windows systems. The user can of course choose\n"
+  "      a specific version and path of this host compiler via the\n"
+  "      '-comp=cuda-hostc++,... parameters. If nvcc is not chosen as the\n"
+  "      default C++ compiler but is used for compilation then its default\n"
+  "      C++ host compiler is 'c++'. The latter can also be customized via\n"
+  "      the '-comp=c++,...' command line switch.\n"
+  , out);
+  // clang-format on
 }
 
 // ----------------------------------------------------------------------------
@@ -144,105 +146,111 @@ int main2(int argc, char **argv) {
       pi.install_prefix = std::string(argv[i] + 8);
       continue;
     }
-    if (!memcmp(argv[i], "-comp=", 6)) {
-      std::string c_comp(argv[i] + 6);
-      std::string cpp_comp(compiler::get_correpsonding_cpp_comp(c_comp));
+    if (!memcmp(argv[i], "-suite=", 7)) {
+      std::string suite(argv[i] + 7);
+      if (suite != "gcc" && suite != "msvc" && suite != "llvm" &&
+          suite != "armclang" && suite != "icc" && suite != "rocm" &&
+          suite != "cuda" && suite != "cuda+gcc" && suite != "cuda+clang" &&
+          suite != "cuda+msvc") {
+        NS2_THROW(std::runtime_error,
+                  "unknown suite given at command line: " + suite);
+      }
+      OUTPUT << "Using compiler from suite: " << suite << '\n';
+      std::string c_comp(compiler::get_corresponding_c_comp(suite));
+      if (c_comp.size() == 0) {
+        OUTPUT << "No C compiler found in suite\n";
+      } else {
+        OUTPUT << "C compiler found in suite: " << c_comp << '\n';
+        compiler::infos_t ci;
+        ci.name = c_comp;
+        ci.path = c_comp;
+        compiler::get_type_and_lang(&ci, c_comp);
+        ci.fully_filled = false;
+        pi.compilers["cc"] = ci;
+      }
+      std::string cpp_comp(compiler::get_corresponding_cpp_comp(suite));
       if (cpp_comp.size() == 0) {
-        std::cerr << argv[0]
-                  << ": ERROR: cannot get corresponding C++ compiler of \""
-                  << c_comp << "\"" << std::endl;
-        exit(EXIT_FAILURE);
+        OUTPUT << "No C++ compiler found in suite\n";
+      } else {
+        OUTPUT << "C++ compiler found in suite: " << cpp_comp << '\n';
+        compiler::infos_t ci;
+        ci.name = cpp_comp;
+        ci.path = cpp_comp;
+        compiler::get_type_and_lang(&ci, cpp_comp);
+        ci.fully_filled = false;
+        pi.compilers["c++"] = ci;
       }
-      std::string code = add_comp(&pi, c_comp, c_comp, "cc");
-      if (code.size() > 0) {
-        std::cerr << argv[0] << ": ERROR: " << code << std::endl;
-        exit(EXIT_FAILURE);
-      }
-      code = add_comp(&pi, cpp_comp, cpp_comp, "c++");
-      if (code.size() > 0) {
-        std::cerr << argv[0] << ": ERROR: " << code << std::endl;
-        exit(EXIT_FAILURE);
-      }
-      continue;
-    }
-    if (!memcmp(argv[i], "-ccomp=", 7)) {
-      std::vector<std::string> words(ns2::split(argv[i] + 7, ','));
-      if (words.size() == 1 && words[0] == "help") {
-        std::cout << argv[0] << ": "
-                  << add_comp(NULL, std::string(), std::string(),
-                              std::string());
-        exit(EXIT_SUCCESS);
-      }
-      std::string code;
-      if (words.size() != 2 && words.size() != 4) {
-        std::cerr << argv[0] << ": ERROR: wrong format for C compiler"
-                  << std::endl;
-        exit(EXIT_FAILURE);
-      } else if (words.size() == 2) {
-        code = add_comp(&pi, words[0], words[1], "cc");
-      } else if (words.size() == 4) {
-        code = add_comp(&pi, words[0], words[1], "cc", words[2], words[3]);
-      }
-      if (code.size() > 0) {
-        std::cerr << argv[0] << ": ERROR: " << code << std::endl;
-        exit(EXIT_FAILURE);
+      // If suite is cuda+XXX then we have to set the host compiler to XXX
+      if (ns2::startswith(suite, "cuda")) {
+        compiler::infos_t ci;
+        if (suite == "cuda") {
+#ifdef NS2_IS_MSVC
+          ci.name = "cl";
+#else
+          ci.name = "g++";
+#endif
+        } else if (suite == "cuda+gcc") {
+          ci.name = "g++";
+        } else if (suite == "cuda+clang") {
+          ci.name = "clang++";
+        } else if (suite == "cuda+msvc") {
+          ci.name = "cl";
+        }
+        OUTPUT << "CUDA host C++ compiler will be: " << ci.name << '\n';
+        ci.path = ci.name;
+        compiler::get_type_and_lang(&ci, ci.name);
+        ci.fully_filled = false;
+        pi.compilers["cuda-host-c++"] = ci;
       }
       continue;
     }
-    if (!memcmp(argv[i], "-cppcomp=", 9)) {
-      std::vector<std::string> words(ns2::split(argv[i] + 9, ','));
-      if (words.size() == 1 && words[0] == "help") {
-        std::cout << argv[0] << ": "
-                  << add_comp(NULL, std::string(), std::string(),
-                              std::string());
-        exit(EXIT_SUCCESS);
+    if (!memcmp(argv[i], "-comp=", 6)) {
+      std::vector<std::string> words(ns2::split(argv[i] + 6, ','));
+      if (words.size() <= 1) {
+        NS2_THROW(std::runtime_error, "misformed -comp argument");
       }
-      std::string code;
-      if (words.size() != 2 && words.size() != 4) {
-        std::cerr << argv[0] << ": ERROR: wrong format for C++ compiler"
-                  << std::endl;
-        exit(EXIT_FAILURE);
-      } else if (words.size() == 2) {
-        code = add_comp(&pi, words[0], words[1], "c++");
-      } else if (words.size() == 4) {
-        code = add_comp(&pi, words[0], words[1], "c++", words[2], words[3]);
+      // In order: COMMAND, COMPILER, PATH, VERSION, ARCHI
+      //              0         1      2       3       4
+      if (!shell::command_is_compiler(words[0])) {
+        NS2_THROW(std::runtime_error,
+                  "unknown compilation command given at -comp");
       }
-      if (code.size() > 0) {
-        std::cerr << argv[0] << ": ERROR: " << code << std::endl;
-        exit(EXIT_FAILURE);
+      compiler::infos_t ci;
+      ci.fully_filled = false;
+      if (compiler::get_type_and_lang(&ci, words[1]) == -1) {
+        NS2_THROW(std::runtime_error, "unknown compiler given at -comp");
       }
+      if (words.size() >= 3) {
+        ci.path = words[2];
+      }
+      if (words.size() >= 4) {
+        compiler::get_version_from_string(&ci, ns2::split(words[3], '.'));
+      }
+      if (words.size() >= 5) {
+        compiler::get_archi_from_string(&ci, words[4]);
+        ci.fully_filled = true;
+      }
+      pi.compilers[words[0]] = ci;
       continue;
-    }
-    if (!strcmp(argv[i], "-Ghelp")) {
-      std::cout << argv[0] << ": Supported generators:\n"
-                << "  make       POSIX Makefile\n"
-                << "  gnumake    GNU Makefile\n"
-                << "  nmake      Microsot Visual Studio NMake Makefile\n"
-                << "  ninja      Ninja build file (this is the default)\n"
-                << "  list-vars  List project specific variables\n"
-                << std::endl;
-      return 0;
     }
     if (!memcmp(argv[i], "-G", 2)) {
       if (generator) {
-        std::cerr << argv[0] << ": ERROR: generator already given"
-                  << std::endl;
-        return -1;
+        NS2_THROW(std::runtime_error,
+                  "generator already given at command line");
       }
       generator = &argv[i][2];
       if (strcmp(generator, "make") && strcmp(generator, "nmake") &&
           strcmp(generator, "ninja") && strcmp(generator, "gnumake") &&
           strcmp(generator, "list-vars")) {
-        std::cerr << argv[0] << ": ERROR: unknown generator: " << generator
-                  << std::endl;
-        return -1;
+        NS2_THROW(std::runtime_error,
+                  "unknown generator given at command line");
       }
       continue;
     }
     if (!memcmp(argv[i], "-o", 2)) {
       if (output) {
-        std::cerr << argv[0] << ": ERROR: output already given" << std::endl;
-        return -1;
+        NS2_THROW(std::runtime_error,
+                  "output file already given at command line");
       }
       output = &argv[i][2];
       pi.build_dir = ns2::absolute(ns2::split_path(output).first);
@@ -252,9 +260,8 @@ int main2(int argc, char **argv) {
       const char *arg = &argv[i][2];
       const char *equal = strchr(arg, '=');
       if (equal == NULL) {
-        std::cerr << argv[0] << ": ERROR: cannot parse define directive"
-                  << std::endl;
-        return -1;
+        NS2_THROW(std::runtime_error,
+                  "cannot parse define directive at command line");
       }
       std::string key(arg, equal);
       std::string val(equal + 1);
@@ -262,16 +269,15 @@ int main2(int argc, char **argv) {
       continue;
     }
     if (!ns2::exists(argv[i])) {
-      std::cerr << argv[0] << ": ERROR: cannot access source dir: " << argv[i]
-                << std::endl;
-      return -1;
+      NS2_THROW(std::runtime_error,
+                "cannot access source dir at command line");
     } else {
       pi.source_dir = ns2::absolute(argv[i]);
       continue;
     }
-    std::cerr << argv[0] << ": ERROR: unknown argument: " << argv[i]
-              << std::endl;
-    return -1;
+    NS2_THROW(std::runtime_error,
+              std::string("unknown argument given at command line: ") +
+                  argv[i]);
   }
 
   // reconstruct command line

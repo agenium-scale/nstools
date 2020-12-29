@@ -229,8 +229,7 @@ static std::string get_msvc_deps_prefix(std::string const &path) {
       }
     }
   }
-  OUTPUT << "Cannot get MSVC prefix when /showIncludes" << std::endl;
-  exit(EXIT_FAILURE);
+  NS2_THROW(std::runtime_error, "Cannot get MSVC prefix when /showIncludes");
   return std::string(); // Should never be reached
 }
 

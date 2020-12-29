@@ -40,6 +40,7 @@ std::string rm(bool, std::string const &);
 std::string cp(bool, std::string const &, std::string const &);
 std::string mkdir_p(std::string const &);
 std::string zip(std::string const &);
+bool command_is_compiler(std::string const &);
 
 // ----------------------------------------------------------------------------
 

@@ -641,8 +641,8 @@ gcc_clang(std::string const &compiler,
   args["-mavx512_skylake"] =
       "-mavx512f -mavx512dq -mavx512cd -mavx512bw -mavx512vl";
   if (ci.arch == compiler::infos_t::ARMEL) {
-    args["-mneon64"] = "-mfloat-abi=hard -mfpu=neon";
-    args["-mneon128"] = "-mfloat-abi=hard -mfpu=neon";
+    args["-mneon64"] = "-mfloat-abi=softfp -mfpu=neon";
+    args["-mneon128"] = "-mfloat-abi=softfp -mfpu=neon";
   } else {
     args["-mneon64"] = "-mfpu=neon";
     args["-mneon128"] = "-mfpu=neon";

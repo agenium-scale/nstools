@@ -598,8 +598,16 @@ gcc_clang(std::string const &compiler,
   args["-std=c11"] = "-std=c11 -pedantic";
   args["-std=c++98"] = "-std=c++98 -pedantic";
   args["-std=c++03"] = "-std=c++03 -pedantic";
-  args["-std=c++11"] = "-std=c++11 -pedantic";
-  args["-std=c++14"] = "-std=c++14 -pedantic";
+  if (ci.type == compiler::infos_t::GCC && ci.version < 40801) {
+    args["-std=c++11"] = "-std=c++0x";
+  } else {
+    args["-std=c++11"] = "-std=c++11 -pedantic";
+  }
+  if (ci.type == compiler::infos_t::GCC && ci.version < 50000) {
+    args["-std=c++14"] = "-std=c++1y";
+  } else {
+    args["-std=c++14"] = "-std=c++14 -pedantic";
+  }
   args["-std=c++17"] = "-std=c++17 -pedantic";
   args["-std=c++20"] = "-std=c++20 -pedantic";
   args["-O0"] = "-O0";
@@ -612,8 +620,12 @@ gcc_clang(std::string const &compiler,
   args["-c"] = "-c";
   args["-x"] = "-x";
   args["-o"] = "-o";
-  args["-Wall"] =
-      "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
+  if (ci.type == compiler::infos_t::GCC && ci.version < 40500) {
+    args["-Wall"] = "-Wall -Wextra -Wconversion -Wsign-conversion";
+  } else {
+    args["-Wall"] =
+        "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
+  }
   args["-fPIC"] = "-fPIC";
   args["-static-libstdc++"] = "-static-libstdc++ -static-libgcc";
   args["-msse"] = "-msse";

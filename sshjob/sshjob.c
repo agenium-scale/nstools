@@ -39,7 +39,7 @@ $ sshjob kill 5893756
 On Linux, the job is created using setsid(2) and the usual fork(2) + execv(2).
 Moreover file descriptors 0, 1 and 2 are closed for the job so that is
 detached from SSH. On Windows the situation is a little more complex. We use
-a 2-stage process as we do have found a simplier way:
+a 2-stage process as we do not have found a simplier way:
 
 - stage1: We create a process that does not inherit any handle to be detached
   from SSH with the CREATE_BREAKAWAY_FROM_JOB flag so that the new process
@@ -64,7 +64,7 @@ quickly. This program has no dependencies and is as portable as possible.
 
 Windows: cl /Ox /W3 /D_CRT_SECURE_NO_WARNINGS sshjob.c
 
-Unix: cc -O3 -Wall sshjob.c -o sshjob
+Unix: cc -O2 -Wall sshjob.c -o sshjob
 
 */
 
@@ -109,7 +109,7 @@ void note_on_buffers(FILE *out) {
 
 #ifndef _MSC_VER
 
-int run_job(const char *cmd) {
+int run_job(char *cmd) {
   pid_t pid = fork();
   if (pid == -1) {
     fprintf(stderr, "%s: error: cannot run command: %s\n", argv0,

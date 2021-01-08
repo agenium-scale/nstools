@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 Agenium Scale
+# Copyright (c) 2020 Agenium Scale
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,34 +21,69 @@
 # SOFTWARE.
 
 CXX          = cl
-OFLAGS       = /Ox
-CXX_FLAGS    = $(OFLAGS) /W3 /EHsc /D_CRT_SECURE_NO_WARNINGS -I..\ns2\include \
-               /DNS_NO_DLLSPEC
+CXX_FLAGS    = /Ox /W3 /EHsc /D_CRT_SECURE_NO_WARNINGS -I..\ns2\include \
+               /DNS_NO_DLLSPEC /c
 LD_FLAGS     = Shlwapi.lib Dbghelp.lib
-NS2_SRC      = ..\ns2\lib\string.cpp ..\ns2\lib\fs.cpp ..\ns2\lib\process.cpp \
-               ..\ns2\lib\backtrace.cpp ..\ns2\lib\exception.cpp \
-               ..\ns2\lib\levenshtein.cpp
-NSCONFIG_SRC = backend_ninja.cpp \
-               backend_make.cpp \
-               compiler.cpp \
-               nsconfig.cpp \
-               parser.cpp \
-               shell.cpp \
-               find_exe_lib_header.cpp
 
-all:
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) $(LD_FLAGS) \
-	       /Fensconfig.exe
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp $(LD_FLAGS) /Fenstest.exe
+all: nsconfig.exe nstest.exe
 
-nsconfig.exe: ..\.git\logs\HEAD
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) $(NSCONFIG_SRC) $(LD_FLAGS) \
-	       /Fensconfig.exe
+string.obj: ..\ns2\lib\string.cpp ..\ns2\include\ns2\string.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\string.cpp /Fo$@
 
-nstest.exe: ..\.git\logs\HEAD
-	$(CXX) $(CXX_FLAGS) $(NS2_SRC) nstest.cpp $(LD_FLAGS) /Fenstest.exe
+fs.obj: ..\ns2\lib\fs.cpp ..\ns2\include\ns2\fs.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\fs.cpp /Fo$@
 
-install:
+process.obj: ..\ns2\lib\process.cpp ..\ns2\include\ns2\process.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\process.cpp /Fo$@
+
+backtrace.obj: ..\ns2\lib\backtrace.cpp ..\ns2\include\ns2\backtrace.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\backtrace.cpp /Fo$@
+
+levenshtein.obj: ..\ns2\lib\levenshtein.cpp ..\ns2\include\ns2\levenshtein.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\levenshtein.cpp /Fo$@
+
+exception.obj: ..\ns2\lib\exception.cpp ..\ns2\include\ns2\exception.hpp
+	$(CXX) $(CXX_FLAGS) ..\ns2\lib\exception.cpp /Fo$@
+
+backend_ninja.obj: backend_ninja.cpp backend_ninja.hpp
+	$(CXX) $(CXX_FLAGS) backend_ninja.cpp /Fo$@
+
+backend_make.obj: backend_make.cpp backend_make.hpp
+	$(CXX) $(CXX_FLAGS) backend_make.cpp /Fo$@
+
+compiler.obj: compiler.cpp compiler.hpp
+	$(CXX) $(CXX_FLAGS) compiler.cpp /Fo$@
+
+nsconfig.obj: nsconfig.cpp nsconfig.hpp
+	$(CXX) $(CXX_FLAGS) nsconfig.cpp /Fo$@
+
+parser.obj: parser.cpp parser.hpp
+	$(CXX) $(CXX_FLAGS) parser.cpp /Fo$@
+
+shell.obj: shell.cpp
+	$(CXX) $(CXX_FLAGS) shell.cpp /Fo$@
+
+find_exe_lib_header.obj: find_exe_lib_header.cpp find_exe_lib_header.hpp
+	$(CXX) $(CXX_FLAGS) find_exe_lib_header.cpp /Fo$@
+
+nstest.obj: nstest.cpp
+	$(CXX) $(CXX_FLAGS) nstest.cpp /Fo$@
+
+nsconfig.exe: string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
+              backend_ninja.obj backend_make.obj compiler.obj nsconfig.obj \
+              parser.obj shell.obj find_exe_lib_header.obj exception.obj
+	$(CXX) string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
+	       backend_ninja.obj backend_make.obj compiler.obj nsconfig.obj \
+	       parser.obj shell.obj find_exe_lib_header.obj exception.obj \
+	       $(LD_FLAGS) /Fe$@
+
+nstest.exe: string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
+            backend_ninja.obj backend_make.obj compiler.obj nstest.obj \
+            exception.obj
+	$(CXX) string.obj fs.obj process.obj backtrace.obj nstest.obj \
+	       exception.obj $(LD_FLAGS) /Fe$@
+
+install: all
 	if not exist %USERPROFILE%\bin md %USERPROFILE%\bin
 	copy /Y nsconfig.exe %USERPROFILE%\bin
 	copy /Y nstest.exe %USERPROFILE%\bin
@@ -63,4 +98,4 @@ install:
 	        %USERPROFILE%\vimfiles\ftdetect\nsconfig.vim
 
 clean:
-	del /Q /F nsconfig.exe nstest.exe
+	del /Q /F nsconfig.exe nstest.exe *.obj *.ilk *.pdb *.lib *.exp

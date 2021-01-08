@@ -600,14 +600,18 @@ compiler:
                              functions.
 - `-vec-report`: Print to stdout full report on autovectorization of loops.
 
-# Sshdetach
+# Sshjob
 
 This tiny helper program has for sole purpose to spawn resilient processes
-through SSH.
+through SSH that can be killed easily.
 
 For Linuxes there is not really any need for that since many solutions already
 exist: nohup, tmux, screen, good use of the shell... For more details see:
 <https://stackoverflow.com/questions/29142/getting-ssh-to-execute-a-command-in-the-background-on-target-machine>
+Howver by default on Linux processes spawned through SSH are not part of a
+process group or session and therefore cannot be killed that easily. That's
+why on Linux sshjob create a process session and group before spawning any
+process.
 
 The plus of this C program is the support of the same functionnality for
 Microsoft Windows systems using Microsoft OpenSSH port (available at github:
@@ -615,34 +619,37 @@ Microsoft Windows systems using Microsoft OpenSSH port (available at github:
 
 ## How it works?
 
-On Linux, nothing new. Double fork + close all `std*` and done.
+On Linux, the job is created using setsid(2) and the usual fork(2) + execv(2).
+Moreover file descriptors 0, 1 and 2 are closed for the job so that is
+detached from SSH. On Windows the situation is a little more complex. We use
+a 2-stage process as we do not have found a simplier way:
 
-On Windows it seems that sshd does not do a simple launch via `CreateProcess`
-but creates a `JobObject`
-(<https://docs.microsoft.com/en-us/windows/desktop/procthread/job-objects>).
-As a consequence any spawned process via CreateProcess belongs to this
-`JobObject`. Then as soon as the command executed by sshd finishes, all its
-child processes are killed because they all belong to the same `JobObject`. The
-trick is to create a child process that get out of the `JobObject`. This is the
-job of this C program. It is done with the `CREATE_BREAKAWAY_FROM_JOB` flag
-passed to `CreateProcess`. This seems to work and will do as long as sshd does
-create a `JobObject` with the `JOB_OBJECT_LIMIT_BREAKAWAY_OK` flag.
+- stage1: We create a process that does not inherit any handle to be detached
+  from SSH with the `CREATE_BREAKAWAY_FROM_JOB` flag so that the new process
+  is not within the SSH job object and hence is not killed by SSH.
 
-## Compilation on Linux
+- stage2: We create a new job object and assign the process from stage1 to
+  the newly created job object. The stage1 process then creates a new job
+  that finally executes what the user wants. The resulting process is created
+  with two particularities:
 
-Make sure that build essential tools are available.
+  1. The created job object must have a handle that can be inherited. Indeed
+     if it is not the case then the job object can never be referenced by
+     any other process and therefore cannot be killed. A handle to the job
+     must be alive.
 
-```sh
-make -f Makefile.nix
-```
+  2. The final process is created and inherits all the handles of the stage1
+     process including the handle to the job object.
 
-## Compilation on Windows
+We do not provide any way of compiling it as the main use of this C program
+is to be copied through network to computers part of the CI and compiled there
+quickly. This program has no dependencies and is as portable as possible.
 
-Make sure that a Visual Studio Prompt is available.
+## Compilation on Linux and Windows
 
-```sh
-nmake /F Makefile.win
-```
+Windows: `cl /Ox /W3 /D_CRT_SECURE_NO_WARNINGS sshjob.c`
+
+Unix: `cc -O2 -Wall sshjob.c -o sshjob`
 
 # Timetable
 

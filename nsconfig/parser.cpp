@@ -459,6 +459,8 @@ inline std::string get_ext(compiler::infos_t::type_t type,
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
+  case compiler::infos_t::FCC_trad_mode:
+  case compiler::infos_t::FCC_clang_mode:
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
   case compiler::infos_t::DPCpp:

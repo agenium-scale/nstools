@@ -32,6 +32,11 @@ namespace shell {
 
 // ----------------------------------------------------------------------------
 
+static std::vector<std::string> fcc(std::string const &,
+                                    std::vector<parser::token_t> const &,
+                                    compiler::infos_t const &,
+                                    parser::infos_t *);
+
 static std::vector<std::string> gcc_clang(std::string const &,
                                           std::vector<parser::token_t> const &,
                                           compiler::infos_t const &,
@@ -456,6 +461,9 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
     return gcc_clang(ci.path, tokens, ci, &pi);
+  case compiler::infos_t::FCC_trad_mode:
+  case compiler::infos_t::FCC_clang_mode:
+    return fcc(ci.path, tokens, ci, &pi);
   case compiler::infos_t::MSVC:
     return msvc(tokens, ci, &pi);
   case compiler::infos_t::ICC:
@@ -493,6 +501,8 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
+  case compiler::infos_t::FCC_trad_mode:
+  case compiler::infos_t::FCC_clang_mode:
   case compiler::infos_t::ICC:
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::NVCC:
@@ -1407,12 +1417,143 @@ hipcc_hcc_dpcpp(std::string const &compiler,
 
 // ----------------------------------------------------------------------------
 
+static std::vector<std::string> fcc(std::string const &compiler,
+                                    std::vector<parser::token_t> const &tokens,
+                                    compiler::infos_t const &ci,
+                                    parser::infos_t *pi_) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
+  if (ci.type == compiler::infos_t::FCC_trad_mode) {
+    ret.push_back("-Nnoclang");
+  } else {
+    ret.push_back("-Nclang");
+  }
+  parser::infos_t &pi = *pi_;
+  std::map<std::string, std::string> args;
+  bool msve = false;
+
+  args["-std=c89"] = "-std=c89";
+  args["-std=c99"] = "-std=c99";
+  args["-std=c11"] = "-std=c11";
+  args["-std=c++98"] = "-std=c++03";
+  args["-std=c++03"] = "-std=c++03";
+  args["-std=c++11"] = "-std=c++11";
+  args["-std=c++14"] = "-std=c++14";
+  args["-std=c++17"] = "-std=c++17";
+  args["-std=c++20"] = "-std=c++17";
+  args["-O0"] = "-O0";
+  args["-O1"] = "-O1";
+  args["-O2"] = "-O2";
+  args["-O3"] = "-O3";
+  args["-g"] = "-g";
+  args["-S"] = "-S";
+  args["-c"] = "-c";
+  args["-o"] = "-o";
+  //args["-x"] = "-x"; // must be handled in the main loop
+  args["-Wall"] = "";
+  args["-fPIC"] = "-fPIC";
+  args["-static-libstdc++"] = "";
+  args["-msse"] = "";
+  args["-msse2"] = "";
+  args["-msse3"] = "";
+  args["-mssse3"] = "";
+  args["-msse41"] = "";
+  args["-msse42"] = "";
+  args["-mavx"] = "";
+  args["-mavx2"] = "";
+  args["-mavx512_knl"] = "";
+  args["-mavx512_skylake"] = "";
+  args["-mneon64"] = "";
+  args["-mneon128"] = "";
+  args["-maarch64"] = "";
+  if (ci.type == compiler::infos_t::FCC_trad_mode) {
+    args["-msve"] = "-KSVE -Ksimd_reg_size=agnostic";
+    args["-msve128"] = "-KSVE -Ksimd_reg_size=128";
+    args["-msve256"] = "-KSVE -Ksimd_reg_size=256";
+    args["-msve512"] = "-KSVE -Ksimd_reg_size=512";
+  } else {
+    args["-msve"] = "-mcpu=generic+sve+fp16";
+    args["-msve128"] = "";
+    args["-msve256"] = "";
+    args["-msve512"] = "";
+  }
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
+  args["-mfma"] = "";
+  args["-mfp16"] = "";
+  args["-fopenmp"] = "-fopenmp";
+  args["-shared"] = "-shared";
+  args["--coverage"] = "--coverage";
+  args["-fdiagnostics-color=always"] = "";
+  args["-maltivec"] = "";
+  args["-mcpu=power7"] = "";
+  args["-msm_35"] = "";
+  args["-msm_50"] = "";
+  args["-msm_53"] = "";
+  args["-msm_60"] = "";
+  args["-msm_61"] = "";
+  args["-msm_62"] = "";
+  args["-msm_70"] = "";
+  args["-msm_72"] = "";
+  args["-msm_75"] = "";
+  args["-fno-omit-frame-pointer"] = "-fno-omit-frame-pointer";
+  args["-vec-report"] = "";
+
+  for (size_t i = 1; i < tokens.size(); i++) {
+    std::string const &arg = tokens[i].text;
+    // The effect of --version on the command line is that the compiler
+    // performs no action but displaying some infos, so no need to pass
+    // other flags that will be ignored
+    if (arg == "--version") {
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("--version");
+      return ret;
+    } else if (arg == "-x") {
+      if (i + 1 >= tokens.size()) {
+        die("argument -x must be followed by the language", tokens[i].cursor);
+      }
+      i++;
+      continue;
+    }
+
+    if (arg == "-msve" || arg == "-msve128" || arg == "-msve256" ||
+        arg == "-msve512") {
+      msve = true;
+    }
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi);
+    ret.insert(ret.end(), buf.begin(), buf.end());
+  }
+
+  if (msve == false) {
+    if (ci.type == compiler::infos_t::FCC_trad_mode) {
+      ret.push_back("-KNOSVE");
+    } else {
+      ret.push_back("-mcpu=generic+nosve");
+    }
+  }
+
+  // if we have been asked to output include files then do it and tell the
+  // the parser that it's GCC specific
+  if (pi.generate_header_deps_flags) {
+    pi.current_compiler.type = compiler::infos_t::GCC;
+    ret.push_back("@@autodeps_flags");
+  }
+
+  return uniq(ret);
+}
+
+// ----------------------------------------------------------------------------
+
 bool command_is_compiler(std::string const &cmd) {
   if (cmd == "cc" || cmd == "c++" || cmd == "msvc" || cmd == "gcc" ||
       cmd == "g++" || cmd == "clang" || cmd == "clang++" || cmd == "mingw" ||
       cmd == "armclang" || cmd == "armclang++" || cmd == "icc" ||
       cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" || cmd == "dpcpp" ||
-      cmd == "cuda-host-c++") {
+      cmd == "cuda-host-c++" || cmd == "fcc_trad_mode" ||
+      cmd == "FCC_trad_mode" || cmd == "fcc_clang_mode" ||
+      cmd == "FCC_clang_mode") {
     return true;
   }
   return false;

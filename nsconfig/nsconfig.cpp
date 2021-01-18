@@ -24,6 +24,7 @@
 #include "backend_ninja.hpp"
 #include "parser.hpp"
 #include "shell.hpp"
+#include "compiler.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -58,6 +59,10 @@ static void help(FILE *out) {
   "                    msvc      Microsoft C and C++ compiler\n"
   "                    llvm      The LLVM compiler infrastructure\n"
   "                    armclang  Arm suite of compilers based on LLVM\n"
+  "                    fcc_trad_mode\n"
+  "                              Fujitsu compiler in traditional mode\n"
+  "                    fcc_clang_mode\n"
+  "                              Fujitsu compiler in clang mode\n"
   "                    icc       Intel C amd C++ compiler\n"
   "                    rocm      Radeon Open Compute compilers\n"
   "                    cuda, cuda+gcc, cuda+clang, cuda+msvc\n"
@@ -88,6 +93,12 @@ static void help(FILE *out) {
   "                    dpcpp                 Intel DPC++ Compiler\n"
   "                    nvcc                  Nvidia CUDA compiler\n"
   "                    hipcc                 ROCm HIP compiler\n"
+  "                    fcc_trad_mode, FCC_trad_mode\n"
+  "                                          Fujitsu C and C++ traditionnal\n"
+  "                                          compiler\n"
+  "                    fcc_clang_mode, FCC_clang_mode\n"
+  "                                          Fujitsu C and C++ traditionnal\n"
+  "                                          compiler\n"
   "  -prefix=PREFIX  Set path for installation to PREFIX\n"
   "  -h, --help      Print the current help\n"
   "\n"
@@ -151,7 +162,8 @@ int main2(int argc, char **argv) {
       if (suite != "gcc" && suite != "msvc" && suite != "llvm" &&
           suite != "armclang" && suite != "icc" && suite != "rocm" &&
           suite != "cuda" && suite != "cuda+gcc" && suite != "cuda+clang" &&
-          suite != "cuda+msvc") {
+          suite != "cuda+msvc" && suite != "fcc_trad_mode" &&
+          suite != "fcc_clang_mode") {
         NS2_THROW(std::runtime_error,
                   "unknown suite given at command line: " + suite);
       }
@@ -163,8 +175,7 @@ int main2(int argc, char **argv) {
         OUTPUT << "C compiler found in suite: " << c_comp << '\n';
         compiler::infos_t ci;
         ci.name = c_comp;
-        ci.path = c_comp;
-        compiler::get_type_and_lang(&ci, c_comp);
+        compiler::get_path_type_and_lang(&ci, c_comp);
         ci.fully_filled = false;
         pi.compilers["cc"] = ci;
       }
@@ -175,8 +186,7 @@ int main2(int argc, char **argv) {
         OUTPUT << "C++ compiler found in suite: " << cpp_comp << '\n';
         compiler::infos_t ci;
         ci.name = cpp_comp;
-        ci.path = cpp_comp;
-        compiler::get_type_and_lang(&ci, cpp_comp);
+        compiler::get_path_type_and_lang(&ci, cpp_comp);
         ci.fully_filled = false;
         pi.compilers["c++"] = ci;
       }
@@ -197,8 +207,7 @@ int main2(int argc, char **argv) {
           ci.name = "cl";
         }
         OUTPUT << "CUDA host C++ compiler will be: " << ci.name << '\n';
-        ci.path = ci.name;
-        compiler::get_type_and_lang(&ci, ci.name);
+        compiler::get_path_type_and_lang(&ci, ci.name);
         ci.fully_filled = false;
         pi.compilers["cuda-host-c++"] = ci;
       }
@@ -217,7 +226,7 @@ int main2(int argc, char **argv) {
       }
       compiler::infos_t ci;
       ci.fully_filled = false;
-      if (compiler::get_type_and_lang(&ci, words[1]) == -1) {
+      if (compiler::get_path_type_and_lang(&ci, words[1]) == -1) {
         NS2_THROW(std::runtime_error, "unknown compiler given at -comp");
       }
       if (words.size() >= 3) {

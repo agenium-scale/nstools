@@ -52,6 +52,10 @@ std::string get_corresponding_cpp_comp(std::string const &suite) {
     return "clang++";
   } else if (suite == "armclang") {
     return "armclang++";
+  } else if (suite == "fcc_trad_mode") {
+    return "FCC_trad_mode";
+  } else if (suite == "fcc_clang_mode") {
+    return "FCC_clang_mode";
   } else if (suite == "icc") {
     return "icc";
   } else if (suite == "rocm") {
@@ -75,6 +79,10 @@ std::string get_corresponding_c_comp(std::string const &suite) {
     return "clang";
   } else if (suite == "armclang") {
     return "armclang";
+  } else if (suite == "fcc_trad_mode") {
+    return "fcc_trad_mode";
+  } else if (suite == "fcc_clang_mode") {
+    return "fcc_clang_mode";
   } else if (suite == "icc") {
     return "icc";
   } else {
@@ -113,6 +121,10 @@ void get_version_from_string(compiler::infos_t *ci_,
   case compiler::infos_t::ARMClang:
   case compiler::infos_t::NVCC:
     ci.version = compute_version(str, 10000, 100, 1);
+    break;
+  case compiler::infos_t::FCC_trad_mode:
+  case compiler::infos_t::FCC_clang_mode:
+    ci.version = compute_version(str, 100, 10, 1);
     break;
   case compiler::infos_t::MSVC:
   case compiler::infos_t::ICC:
@@ -157,44 +169,73 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
 
 // ----------------------------------------------------------------------------
 
-int get_type_and_lang(infos_t *ci, std::string const &str) {
+int get_path_type_and_lang(infos_t *ci, std::string const &str) {
   if (str == "gcc" || str == "g++") {
     ci->type = compiler::infos_t::GCC;
     ci->lang = (str == "gcc" ? compiler::infos_t::C : compiler::infos_t::CPP);
+    ci->path = str;
     return 0;
   } else if (str == "clang" || str == "clang++") {
     ci->type = compiler::infos_t::Clang;
     ci->lang =
         (str == "clang" ? compiler::infos_t::C : compiler::infos_t::CPP);
+    ci->path = str;
     return 0;
   } else if (str == "armclang" || str == "armclang++") {
     ci->type = compiler::infos_t::ARMClang;
     ci->lang =
         (str == "armclang" ? compiler::infos_t::C : compiler::infos_t::CPP);
+    ci->path = str;
     return 0;
-  } else if (str == "cl") {
+  } else if (str == "fcc_trad_mode" || str == "FCC_trad_mode") {
+    ci->type = compiler::infos_t::FCC_trad_mode;
+    ci->lang = (str == "fcc_trad_mode" ? compiler::infos_t::C
+                                       : compiler::infos_t::CPP);
+    if (str == "fcc_trad_mode") {
+      ci->path = "fcc";
+    } else {
+      ci->path = "FCC";
+    }
+    return 0;
+  } else if (str == "fcc_clang_mode" || str == "FCC_clang_mode") {
+    ci->type = compiler::infos_t::FCC_clang_mode;
+    ci->lang = (str == "fcc_clang_mode" ? compiler::infos_t::C
+                                        : compiler::infos_t::CPP);
+    if (str == "fcc_clang_mode") {
+      ci->path = "fcc";
+    } else {
+      ci->path = "FCC";
+    }
+    return 0;
+  } else if (str == "cl" || str == "msvc") {
     ci->type = compiler::infos_t::MSVC;
     ci->lang = compiler::infos_t::Unknown;
+    ci->path = "cl";
     return 0;
   } else if (str == "icc") {
     ci->type = compiler::infos_t::ICC;
     ci->lang = compiler::infos_t::Unknown;
+    ci->path = "icc";
     return 0;
   } else if (str == "nvcc") {
     ci->type = compiler::infos_t::NVCC;
     ci->lang = compiler::infos_t::CPP;
+    ci->path = "nvcc";
     return 0;
   } else if (str == "hipcc") {
     ci->type = compiler::infos_t::HIPCC;
     ci->lang = compiler::infos_t::CPP;
+    ci->path = "hipcc";
     return 0;
   } else if (str == "hcc") {
     ci->type = compiler::infos_t::HCC;
     ci->lang = compiler::infos_t::CPP;
+    ci->path = "hcc";
     return 0;
   } else if (str == "dpc++" || str == "dpcpp") {
     ci->type = compiler::infos_t::DPCpp;
     ci->lang = compiler::infos_t::CPP;
+    ci->path = "dpcpp";
     return 0;
   }
   return -1;
@@ -215,6 +256,8 @@ static bool can_exec(std::string const &str, int verbosity) {
   }
   return code == 0;
 }
+
+// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 
@@ -287,8 +330,7 @@ static void automatic_detection(infos_t *ci, std::string const &name,
     }
 #endif
   } else {
-    ci->path = name;
-    get_type_and_lang(ci, name);
+    get_path_type_and_lang(ci, name);
   }
   return;
 
@@ -439,6 +481,11 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     version_formula = "(long)(__clang_major__ * 10000 + __clang_minor__ * 100 "
                       "+ __clang_patchlevel__)";
     break;
+  case compiler::infos_t::FCC_trad_mode:
+  case compiler::infos_t::FCC_clang_mode:
+    version_formula = "(long)(__FCC_major__ * 100 + __FCC_minor__ * 10 + "
+                      "__FCC_patchlevel__)";
+    break;
   case compiler::infos_t::MSVC:
     version_formula = "(long)(_MSC_VER)";
     break;
@@ -500,6 +547,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   }
   case infos_t::Clang:
   case infos_t::ARMClang:
+  case infos_t::FCC_clang_mode:
+  case infos_t::FCC_trad_mode:
   case infos_t::GCC:
   case infos_t::MSVC:
   case infos_t::HCC:
@@ -517,7 +566,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "printf(\"armhf\");\n"
         "#endif\n"
         "#elif defined(__arm64) || defined(_M_ARM64) || defined(__aarch64__) "
-        "|| defined(__AARCH64EL__) || defined(__ARM_64BIT_STATE)\n"
+        "|| defined(__AARCH64EL__) || defined(__ARM_64BIT_STATE) || "
+        "defined(__ARM_FEATURE_SVE)\n"
         "printf(\"aarch64\");\n"
         "#elif defined(_M_IX86) || defined(_X86_) || defined(__INTEL__) || "
         "defined(__I86__) || defined(__i386__) || defined(__i486__) ||"
@@ -592,6 +642,10 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "clang";
   case compiler::infos_t::ARMClang:
     return "clang";
+  case compiler::infos_t::FCC_trad_mode:
+    return "fcc_trad_mode";
+  case compiler::infos_t::FCC_clang_mode:
+    return "fcc_clang_mode";
   case compiler::infos_t::MSVC:
     return "msvc";
   case compiler::infos_t::ICC:

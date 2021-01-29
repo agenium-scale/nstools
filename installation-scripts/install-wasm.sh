@@ -46,12 +46,12 @@ rm -f "${WORK_DIR}/${EMSCRIPTEN_VER}.tar.gz"
 rm -f "${WORK_DIR}/version_${BINARYEN_VER}.tar.gz"
 
 # Download what is necessary
-(cd ${WORK_DIR} && curl -L ${BINARYEN_URL} -o version_${BINARYEN_VER}.tar.gz)
-(cd ${WORK_DIR} && curl -L ${EMSCRIPTEN_URL} -o ${EMSCRIPTEN_VER}.tar.gz)
+(cd ${WORK_DIR} && curl -L ${BINARYEN_URL} -o binaryen-version_${BINARYEN_VER}.tar.gz)
+(cd ${WORK_DIR} && curl -L ${EMSCRIPTEN_URL} -o emscripten-${EMSCRIPTEN_VER}.tar.gz)
 
 # Decompress
-(cd ${WORK_DIR} && tar xf ${EMSCRIPTEN_VER}.tar.gz)
-(cd ${WORK_DIR} && tar xf version_${BINARYEN_VER}.tar.gz)
+(cd ${WORK_DIR} && tar xf emscripten-${EMSCRIPTEN_VER}.tar.gz)
+(cd ${WORK_DIR} && tar xf binaryen-version_${BINARYEN_VER}.tar.gz)
 
 # Build binaryen first
 BUILD_DIR="${WORK_DIR}/binaryen-version_${BINARYEN_VER}/build"
@@ -67,6 +67,9 @@ mkdir -p "${BUILD_DIR}"
 (cd "${WORK_DIR}/emscripten-${EMSCRIPTEN_VER}" && \
  mkdir -p "${PREFIX}/bin" && \
  mysudo cp -rv * "${PREFIX}/bin")
+
+# Some JS modules are necessary
+(cd ${PREFIX}/bin && mysudo npm instlal acorn)
 
 # Create corresponding modulefile
 mysudo mkdir -p ${MODULE_PATH}

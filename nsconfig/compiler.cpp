@@ -56,6 +56,8 @@ std::string get_corresponding_cpp_comp(std::string const &suite) {
     return "FCC_trad_mode";
   } else if (suite == "fcc_clang_mode") {
     return "FCC_clang_mode";
+  } else if (suite == "emscripten") {
+    return "em++";
   } else if (suite == "icc") {
     return "icc";
   } else if (suite == "rocm") {
@@ -83,6 +85,8 @@ std::string get_corresponding_c_comp(std::string const &suite) {
     return "fcc_trad_mode";
   } else if (suite == "fcc_clang_mode") {
     return "fcc_clang_mode";
+  } else if (suite == "emscripten") {
+    return "emcc";
   } else if (suite == "icc") {
     return "icc";
   } else {
@@ -132,6 +136,7 @@ void get_version_from_string(compiler::infos_t *ci_,
     break;
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
+  case compiler::infos_t::Emscripten:
     ci.version = compute_version(str, 10000, 100, 0);
     break;
   case compiler::infos_t::DPCpp:
@@ -161,6 +166,12 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
     ci.nbits = 32;
   } else if (str == "x86_64") {
     ci.arch = compiler::infos_t::Intel;
+    ci.nbits = 64;
+  } else if (str == "wasm32") {
+    ci.arch = compiler::infos_t::WASM;
+    ci.nbits = 32;
+  } else if (str == "wasm64") {
+    ci.arch = compiler::infos_t::WASM;
     ci.nbits = 64;
   } else {
     NS2_THROW(std::runtime_error, "Invalid architecture");
@@ -206,6 +217,11 @@ int get_path_type_and_lang(infos_t *ci, std::string const &str) {
     } else {
       ci->path = "FCC";
     }
+    return 0;
+  } else if (str == "em++" || str == "emcc") {
+    ci->type = compiler::infos_t::Emscripten;
+    ci->lang = (str == "emcc" ? compiler::infos_t::C : compiler::infos_t::CPP);
+    ci->path = str;
     return 0;
   } else if (str == "cl" || str == "msvc") {
     ci->type = compiler::infos_t::MSVC;
@@ -256,8 +272,6 @@ static bool can_exec(std::string const &str, int verbosity) {
   }
   return code == 0;
 }
-
-// ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
 
@@ -486,6 +500,10 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     version_formula = "(long)(__FCC_major__ * 100 + __FCC_minor__ * 10 + "
                       "__FCC_patchlevel__)";
     break;
+  case compiler::infos_t::Emscripten:
+    version_formula = "(long)(__EMSCRIPTEN_major__ * 10000 + "
+                      "__EMSCRIPTEN_minor__ * 100 + __EMSCRIPTEN_tiny__)";
+    break;
   case compiler::infos_t::MSVC:
     version_formula = "(long)(_MSC_VER)";
     break;
@@ -549,6 +567,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
   case infos_t::ARMClang:
   case infos_t::FCC_clang_mode:
   case infos_t::FCC_trad_mode:
+  case infos_t::Emscripten:
   case infos_t::GCC:
   case infos_t::MSVC:
   case infos_t::HCC:
@@ -576,6 +595,10 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "#elif defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) "
         "|| defined(__amd64) || defined(_M_X64)\n"
         "printf(\"x86_64\");\n"
+        "#elif defined(__wasm32) || defined(__wasm32__)\n"
+        "printf(\"wasm32\");\n"
+        "#elif defined(__wasm64) || defined(__wasm64__)\n"
+        "printf(\"wasm64\");\n"
         "#endif", verbosity);
     if (code.second) {
       NS2_THROW(std::runtime_error, "Cannot find " + get_type_str(ci.type) +
@@ -646,6 +669,8 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "fcc_trad_mode";
   case compiler::infos_t::FCC_clang_mode:
     return "fcc_clang_mode";
+  case compiler::infos_t::Emscripten:
+    return "emscripten";
   case compiler::infos_t::MSVC:
     return "msvc";
   case compiler::infos_t::ICC:

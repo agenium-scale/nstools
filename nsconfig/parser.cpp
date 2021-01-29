@@ -493,6 +493,14 @@ inline std::string get_ext(compiler::infos_t::type_t type,
 #endif
     }
     break;
+  case compiler::infos_t::Emscripten:
+    if (which == "@asm_ext") {
+      return ".s";
+    } else if (which == "@exe_ext") {
+      return ".js";
+    } else {
+      return ".o";
+    }
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
     break;

@@ -37,6 +37,10 @@ static std::vector<std::string> fcc(std::string const &,
                                     compiler::infos_t const &,
                                     parser::infos_t *);
 
+static std::vector<std::string>
+emscripten(std::string const &, std::vector<parser::token_t> const &,
+           compiler::infos_t const &, parser::infos_t *);
+
 static std::vector<std::string> gcc_clang(std::string const &,
                                           std::vector<parser::token_t> const &,
                                           compiler::infos_t const &,
@@ -464,6 +468,8 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   case compiler::infos_t::FCC_trad_mode:
   case compiler::infos_t::FCC_clang_mode:
     return fcc(ci.path, tokens, ci, &pi);
+  case compiler::infos_t::Emscripten:
+    return emscripten(ci.path, tokens, ci, &pi);
   case compiler::infos_t::MSVC:
     return msvc(tokens, ci, &pi);
   case compiler::infos_t::ICC:
@@ -526,6 +532,7 @@ static std::string get_rpath_argument(std::string const &directory,
     }
 #endif
   case compiler::infos_t::MSVC:
+  case compiler::infos_t::Emscripten:
     return std::string();
   }
   return std::string();
@@ -545,7 +552,10 @@ translate_single_arg(std::string const &compiler,
     return ret;
   } else if (arg == "-L.") {
     ret.push_back("-L.");
-    ret.push_back("'-Wl," + get_rpath_argument(".", ci) + "'");
+    std::string rpath_arg(get_rpath_argument(".", ci));
+    if (rpath_arg.size() > 0) {
+      ret.push_back("'-Wl," + rpath_arg + "'");
+    }
     return ret;
   }
   if (arg[0] == '-') {
@@ -563,7 +573,10 @@ translate_single_arg(std::string const &compiler,
       } else if (arg[1] == 'L') {
         std::string path(shell::ify(&arg[2]));
         ret.push_back("-L" + path);
-        ret.push_back("-Wl," + get_rpath_argument(path, ci));
+        std::string rpath_arg(get_rpath_argument(path, ci));
+        if (rpath_arg.size() > 0) {
+          ret.push_back("'-Wl," + rpath_arg + "'");
+        }
       } else {
         ret.push_back(std::string("-") + arg[1] + shell::ify(&arg[2]));
       }
@@ -1417,6 +1430,108 @@ hipcc_hcc_dpcpp(std::string const &compiler,
 
 // ----------------------------------------------------------------------------
 
+static std::vector<std::string>
+emscripten(std::string const &compiler,
+           std::vector<parser::token_t> const &tokens,
+           compiler::infos_t const &ci, parser::infos_t *pi_) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
+  ret.push_back("-Wno-version-check");
+  parser::infos_t &pi = *pi_;
+  std::map<std::string, std::string> args;
+
+  args["-std=c89"] = "-std=c89 -pedantic";
+  args["-std=c99"] = "-std=c99 -pedantic";
+  args["-std=c11"] = "-std=c11 -pedantic";
+  args["-std=c++98"] = "-std=c++98 -pedantic";
+  args["-std=c++03"] = "-std=c++03 -pedantic";
+  args["-std=c++11"] = "-std=c++11 -pedantic";
+  args["-std=c++14"] = "-std=c++14 -pedantic";
+  args["-std=c++17"] = "-std=c++17 -pedantic";
+  args["-std=c++20"] = "-std=c++20 -pedantic";
+  args["-O0"] = "-O0";
+  args["-O1"] = "-O1";
+  args["-O2"] = "-O2";
+  args["-O3"] = "-O3";
+  args["-g"] = "-g";
+  args["-S"] = "-S";
+  args["-c"] = "-c";
+  args["-o"] = "-o";
+  args["-x"] = "-x";
+  args["-Wall"] =
+      "-Wall -Wextra -Wdouble-promotion -Wconversion -Wsign-conversion";
+  args["-fPIC"] = "";
+  args["-static-libstdc++"] = "";
+  args["-msse"] = "";
+  args["-msse2"] = "";
+  args["-msse3"] = "";
+  args["-mssse3"] = "";
+  args["-msse41"] = "";
+  args["-msse42"] = "";
+  args["-mavx"] = "";
+  args["-mavx2"] = "";
+  args["-mavx512_knl"] = "";
+  args["-mavx512_skylake"] = "";
+  args["-mneon64"] = "";
+  args["-mneon128"] = "";
+  args["-maarch64"] = "";
+  args["-msve"] = "";
+  args["-msve128"] = "";
+  args["-msve256"] = "";
+  args["-msve512"] = "";
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
+  args["-mfma"] = "";
+  args["-mfp16"] = "";
+  args["-fopenmp"] = "";
+  args["-shared"] = "-shared";
+  args["--coverage"] = "";
+  args["-fdiagnostics-color=always"] = "";
+  args["-maltivec"] = "";
+  args["-mcpu=power7"] = "";
+  args["-msm_35"] = "";
+  args["-msm_50"] = "";
+  args["-msm_53"] = "";
+  args["-msm_60"] = "";
+  args["-msm_61"] = "";
+  args["-msm_62"] = "";
+  args["-msm_70"] = "";
+  args["-msm_72"] = "";
+  args["-msm_75"] = "";
+  args["-fno-omit-frame-pointer"] = "";
+  args["-vec-report"] = "-Rpass=loop-vectorize "
+                        "-Rpass-missed=loop-vectorize "
+                        "-Rpass-analysis=loop-vectorize";
+
+  for (size_t i = 1; i < tokens.size(); i++) {
+    std::string const &arg = tokens[i].text;
+    // The effect of --version on the command line is that the compiler
+    // performs no action but displaying some infos, so no need to pass
+    // other flags that will be ignored
+    if (arg == "--version") {
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("--version");
+      return ret;
+    }
+
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi);
+    ret.insert(ret.end(), buf.begin(), buf.end());
+  }
+
+  // if we have been asked to output include files then do it and tell the
+  // the parser that it's GCC specific
+  if (pi.generate_header_deps_flags) {
+    pi.current_compiler.type = compiler::infos_t::GCC;
+    ret.push_back("@@autodeps_flags");
+  }
+
+  return uniq(ret);
+}
+
+// ----------------------------------------------------------------------------
+
 static std::vector<std::string> fcc(std::string const &compiler,
                                     std::vector<parser::token_t> const &tokens,
                                     compiler::infos_t const &ci,
@@ -1553,7 +1668,7 @@ bool command_is_compiler(std::string const &cmd) {
       cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" || cmd == "dpcpp" ||
       cmd == "cuda-host-c++" || cmd == "fcc_trad_mode" ||
       cmd == "FCC_trad_mode" || cmd == "fcc_clang_mode" ||
-      cmd == "FCC_clang_mode") {
+      cmd == "FCC_clang_mode" || cmd == "emcc" || cmd == "em++") {
     return true;
   }
   return false;

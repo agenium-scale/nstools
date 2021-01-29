@@ -51,13 +51,14 @@ struct infos_t {
     ARMClang,
     FCC_trad_mode,
     FCC_clang_mode,
+    Emscripten,
     ICC,
     NVCC,
     HIPCC,
     HCC,
     DPCpp
   } type;
-  enum arch_t { Intel, ARMEL, ARMHF, AARCH64 } arch;
+  enum arch_t { Intel, ARMEL, ARMHF, AARCH64, WASM } arch;
   enum lang_t { Unknown, C, CPP } lang;
   std::string name;
   std::string path;

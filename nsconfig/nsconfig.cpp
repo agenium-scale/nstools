@@ -63,6 +63,8 @@ static void help(FILE *out) {
   "                              Fujitsu compiler in traditional mode\n"
   "                    fcc_clang_mode\n"
   "                              Fujitsu compiler in clang mode\n"
+  "                    emscripten\n"
+  "                              Emscripten suite for compiling into JS\n"
   "                    icc       Intel C amd C++ compiler\n"
   "                    rocm      Radeon Open Compute compilers\n"
   "                    cuda, cuda+gcc, cuda+clang, cuda+msvc\n"
@@ -74,7 +76,7 @@ static void help(FILE *out) {
   "                  compiling and/or setting the CUDA host compiler.\n"
   "                  COMMAND must be in { cc, c++, gcc, g++, cl, icc, nvcc,\n"
   "                  hipcc, hcc, clang, clang++, armclang, armclang++,\n"
-  "                  cuda-host-c++ } ;\n"
+  "                  cuda-host-c++, emcc, em++ } ;\n"
   "                  VERSION is compiler dependant. Note that VERSION\n"
   "                  can be set to only major number(s) in which case\n"
   "                  nsconfig fill missing numbers with zeros.\n"
@@ -84,9 +86,12 @@ static void help(FILE *out) {
   "                    armel    ARMv5 and ARMv6 32-bits ISA\n"
   "                    armhf    ARMv7 32-bits ISA\n"
   "                    aarch64  ARM 64-bits ISA\n"
+  "                    wasm32   WebAssembly with 32-bits memory indexing\n"
+  "                    wasm64   WebAssembly with 64-bits memory indexing\n"
   "                  Supported COMPILER:\n"
   "                    gcc, g++              GNU Compiler Collection\n"
   "                    clang, clang++        LLVM Compiler Infrastructure\n"
+  "                    emcc, em++            Emscripten compilers\n"
   "                    msvc, cl              Microsoft Visual C++\n"
   "                    armclang, armclang++  ARM Compiler\n"
   "                    icc                   Intel C/C++ Compiler\n"
@@ -163,7 +168,7 @@ int main2(int argc, char **argv) {
           suite != "armclang" && suite != "icc" && suite != "rocm" &&
           suite != "cuda" && suite != "cuda+gcc" && suite != "cuda+clang" &&
           suite != "cuda+msvc" && suite != "fcc_trad_mode" &&
-          suite != "fcc_clang_mode") {
+          suite != "fcc_clang_mode" && suite != "emscripten") {
         NS2_THROW(std::runtime_error,
                   "unknown suite given at command line: " + suite);
       }

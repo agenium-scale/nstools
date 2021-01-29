@@ -1437,6 +1437,7 @@ emscripten(std::string const &compiler,
   std::vector<std::string> ret;
   ret.push_back(compiler);
   ret.push_back("-Wno-version-check");
+  ret.push_back("-Wno-emcc");
   parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
 

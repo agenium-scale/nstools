@@ -498,8 +498,10 @@ inline std::string get_ext(compiler::infos_t::type_t type,
       return ".s";
     } else if (which == "@exe_ext") {
       return ".js";
-    } else {
+    } else if (which == "@obj_ext") {
       return ".o";
+    } else {
+      return ".a";
     }
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");

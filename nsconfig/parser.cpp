@@ -69,6 +69,7 @@ static const char *statements[] = {
   "disable_package",
   "set",
   "ifnot_set",
+  "lambda",
   "glob",
   "popen",
   "ifnot_glob",
@@ -136,6 +137,21 @@ void add_variable(variables_t *variables, std::string const &key,
               key, std::pair<bool, std::string>(used, value)));
     }
   }
+}
+
+// ----------------------------------------------------------------------------
+
+static void add_lambda(std::vector<lambda::lambda_t> *lambdas_,
+                       std::string const &key, std::string const &value) {
+  std::vector<lambda::lambda_t> &lambdas = *lambdas_;
+  lambda::lambda_t l = lambda::create(key, value);
+  for (size_t i = 0; i < lambdas.size(); i++) {
+    if (lambda::cmp(l, lambdas[i])) {
+      lambdas[i] = l;
+      return;
+    }
+  }
+  lambdas.push_back(l);
 }
 
 // ----------------------------------------------------------------------------
@@ -250,19 +266,24 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
 
       variables_t::iterator it = variables.find(key);
       if (it == variables.end()) {
-        if (pi.getting_vars_list) {
-          ret += key;
-        } else {
-          cur.col = int(i);
-          std::string suggestions(
-              get_first_suggestions(ns2::levenshtein_sort(variables, key)));
-          if (suggestions.size() > 0) {
-            die("don't know how to expand this: \"" + key +
-                    "\", did you mean " + suggestions + "?",
-                cur);
+        std::pair<bool, std::string> l = lambda::find(key, pi.lambdas);
+        if (l.first == false) {
+          if (pi.getting_vars_list) {
+            ret += key;
           } else {
-            die("don't know how to expand this: \"" + key + "\"", cur);
+            cur.col = int(i);
+            std::string suggestions(
+                get_first_suggestions(ns2::levenshtein_sort(variables, key)));
+            if (suggestions.size() > 0) {
+              die("don't know how to expand this: \"" + key +
+                      "\", did you mean " + suggestions + "?",
+                  cur);
+            } else {
+              die("don't know how to expand this: \"" + key + "\"", cur);
+            }
           }
+        } else {
+          ret += l.second;
         }
       } else {
         ret += it->second.second;
@@ -631,15 +652,15 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
     // just a shortcut
     std::string const &head = tokens[0].text;
 
-    // set and ifnot_set
+    // set, ifnot_set and lambda
     // We begin by this command because it allows us to skip the rest
     // of the commands when the user just wants to list variables that can
     // be set outside of the build.nsconfig
-    if (!cmd && (head == "set" || head == "ifnot_set")) {
+    if (!cmd && (head == "set" || head == "ifnot_set" || head == "lambda")) {
       if (tokens.size() == 1 && head == "ifnot_set") {
         die("expected variable description after", tokens[0].cursor);
       }
-      size_t i0 = (head == "set" ? 1 : 2);
+      size_t i0 = (head == "set" || head == "lambda" ? 1 : 2);
       if (tokens.size() == i0) {
         die("expected variable name after", tokens[i0 - 1].cursor);
       }
@@ -701,13 +722,17 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
           }
         }
       }
-      add_variable(&pi.variables, key, value, true, head == "set");
-      if (head == "ifnot_set") {
-        infos_t::var_helper_t buf;
-        buf.var_name = tokens[2].text;
-        buf.helper = tokens[1].text;
-        buf.cursor = cursor;
-        pi.vars_list.push_back(buf);
+      if (head == "lambda") {
+        add_lambda(&pi.lambdas, key, value);
+      } else {
+        add_variable(&pi.variables, key, value, true, head == "set");
+        if (head == "ifnot_set") {
+          infos_t::var_helper_t buf;
+          buf.var_name = tokens[2].text;
+          buf.helper = tokens[1].text;
+          buf.cursor = cursor;
+          pi.vars_list.push_back(buf);
+        }
       }
       continue;
     }

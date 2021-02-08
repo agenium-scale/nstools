@@ -54,6 +54,9 @@ backend_make.obj: backend_make.cpp backend_make.hpp
 compiler.obj: compiler.cpp compiler.hpp
 	$(CXX) $(CXX_FLAGS) compiler.cpp /Fo$@
 
+lambda.obj: lambda.cpp lambda.hpp
+	$(CXX) $(CXX_FLAGS) lambda.cpp /Fo$@
+
 nsconfig.obj: nsconfig.cpp nsconfig.hpp
 	$(CXX) $(CXX_FLAGS) nsconfig.cpp /Fo$@
 
@@ -71,11 +74,12 @@ nstest.obj: nstest.cpp
 
 nsconfig.exe: string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
               backend_ninja.obj backend_make.obj compiler.obj nsconfig.obj \
-              parser.obj shell.obj find_exe_lib_header.obj exception.obj
+              parser.obj shell.obj find_exe_lib_header.obj exception.obj \
+              lambda.obj
 	$(CXX) string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
 	       backend_ninja.obj backend_make.obj compiler.obj nsconfig.obj \
 	       parser.obj shell.obj find_exe_lib_header.obj exception.obj \
-	       $(LD_FLAGS) /Fe$@
+	       lambda.obj $(LD_FLAGS) /Fe$@
 
 nstest.exe: string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
             backend_ninja.obj backend_make.obj compiler.obj nstest.obj \

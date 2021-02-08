@@ -39,6 +39,7 @@ sy keyword nsconfig_statements
   \ disable_package
   \ set
   \ ifnot_set
+  \ lambda
   \ glob
   \ popen
   \ ifnot_glob

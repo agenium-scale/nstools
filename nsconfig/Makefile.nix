@@ -60,6 +60,9 @@ compiler.o: compiler.cpp compiler.hpp
 nsconfig.o: nsconfig.cpp nsconfig.hpp
 	$(CXX) $(CXX_FLAGS) nsconfig.cpp -o $@
 
+lambda.o: lambda.cpp lambda.hpp
+	$(CXX) $(CXX_FLAGS) lambda.cpp -o $@
+
 parser.o: parser.cpp parser.hpp
 	$(CXX) $(CXX_FLAGS) parser.cpp -o $@
 
@@ -74,10 +77,10 @@ nstest.o: nstest.cpp
 
 nsconfig: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
           backend_make.o compiler.o nsconfig.o parser.o shell.o \
-          find_exe_lib_header.o
+          find_exe_lib_header.o lambda.o
 	$(CXX) string.o fs.o process.o backtrace.o levenshtein.o \
 	       backend_ninja.o backend_make.o compiler.o nsconfig.o parser.o \
-	       shell.o find_exe_lib_header.o -o $@
+	       lambda.o shell.o find_exe_lib_header.o -o $@
 
 nstest: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
         backend_make.o compiler.o nstest.o

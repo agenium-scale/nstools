@@ -23,6 +23,7 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#include "lambda.hpp"
 #include "compiler.hpp"
 #include <map>
 #include <ns2/fs.hpp>
@@ -88,6 +89,7 @@ struct infos_t {
   std::vector<std::string> outputs;
   compiler::list_t compilers;
   variables_t variables;
+  std::vector<lambda::lambda_t> lambdas;
   std::string cmdline;
   std::string build_nsconfig;
   std::string output_file;

@@ -238,14 +238,14 @@ int main2(int argc, char **argv) {
 // ----------------------------------------------------------------------------
 
 int main(int argc, char **argv) {
-
-  // std::cout << "Attach MSVC...\n";
-  // fgetc(stdin);
-
-  try {
+  if (getenv("DEBUGGING_NSTEST") != NULL) {
     return main2(argc, argv);
-  } catch (std::exception const &e) {
-    std::cerr << argv[0] << ": error: " << e.what() << std::endl;
-    exit(EXIT_FAILURE);
+  } else {
+    try {
+      return main2(argc, argv);
+    } catch (std::exception const &e) {
+      std::cerr << argv[0] << ": error: " << e.what() << std::endl;
+      exit(EXIT_FAILURE);
+    }
   }
 }

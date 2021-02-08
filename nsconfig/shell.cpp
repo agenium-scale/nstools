@@ -1270,7 +1270,7 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
         if (arg.size() == 2) {
           die("no macro name given here", tokens[i].cursor);
         }
-        host_tokens.push_back(arg);
+        host_tokens.push_back(tokens[i]);
         ret.push_back(arg);
       } else {
         host_tokens.push_back(tokens[i]);

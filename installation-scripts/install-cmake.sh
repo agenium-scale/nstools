@@ -31,7 +31,7 @@ mysudo() {
 
 # Set variables
 WORK_DIR=tmp
-VERSION=3.19.1
+VERSION=${1}
 TAR_GZ=cmake-${VERSION}.tar.gz
 SRC_DIR=cmake-${VERSION}
 PREFIX="/opt/local/cmake/${VERSION}"

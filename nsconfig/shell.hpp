@@ -31,11 +31,20 @@ namespace shell {
 
 // ----------------------------------------------------------------------------
 
-std::string translate(std::vector<parser::token_t> const &, parser::infos_t *);
+struct autodeps_t {
+  std::string file;
+  std::string cmd;
+  compiler::infos_t::type_t by;
+};
+
+// ----------------------------------------------------------------------------
+
+std::string translate(std::string const &, parser::infos_t *, autodeps_t *);
+std::string translate(std::vector<parser::token_t> const &, parser::infos_t *,
+                      autodeps_t * = NULL);
 std::string stringify(std::string const &);
 std::string ify(std::string const &);
 std::vector<std::string> ify(std::vector<std::string> const &);
-std::string autodeps_flags(compiler::infos_t::type_t, std::string);
 std::string rm(bool, std::string const &);
 std::string cp(bool, std::string const &, std::string const &);
 std::string mkdir_p(std::string const &);

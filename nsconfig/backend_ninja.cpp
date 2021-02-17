@@ -41,7 +41,8 @@ namespace backend {
 
 // ----------------------------------------------------------------------------
 
-static size_t ninja_cmds_len(rule_desc_t const &rule_desc) {
+static size_t
+ninja_cmds_len(rule_desc_t<WithShellTranslation> const &rule_desc) {
   size_t ret = 0;
 #ifdef NS2_IS_MSVC
   const size_t command_overhead = 8;
@@ -50,8 +51,8 @@ static size_t ninja_cmds_len(rule_desc_t const &rule_desc) {
   const size_t command_overhead = 4;
   const size_t constant_overhead = 0;
 #endif
-  for (size_t i = 0; i < rule_desc.cmds.size(); i++) {
-    ret += rule_desc.cmds[i].size() + command_overhead;
+  for (size_t i = 0; i < rule_desc.cmds.data.size(); i++) {
+    ret += rule_desc.cmds.data[i].size() + command_overhead;
   }
   return ret + constant_overhead;
 }
@@ -88,9 +89,10 @@ static size_t shell_cmd_max_len() {
 
 // ----------------------------------------------------------------------------
 
-static void ninja_output_rule(rule_desc_t const &rule_desc,
-                              ns2::ofile_t &out) {
-  std::vector<std::string> cmds(rule_desc.cmds);
+static void
+ninja_output_rule(rule_desc_t<WithShellTranslation> const &rule_desc,
+                  ns2::ofile_t &out) {
+  std::vector<std::string> cmds(rule_desc.cmds.data);
   out << "# ---\n\n";
 
   if (cmds.size() == 0) {
@@ -105,7 +107,7 @@ static void ninja_output_rule(rule_desc_t const &rule_desc,
 
   // check if we have a path as target
   ns2::dir_file_t df = ns2::split_path(rule_desc.output);
-  if (rule_desc.type != rule_desc_t::Phony && cmds.size() > 0 &&
+  if (rule_desc.type != RulePhony && cmds.size() > 0 &&
       df.first != "") {
     std::string folder(shell::ify(df.first));
 #ifdef NS2_IS_MSVC
@@ -176,7 +178,7 @@ static void ninja_output_rule(rule_desc_t const &rule_desc,
     }
   }
 #endif
-  if (rule_desc.type == rule_desc_t::SelfGenerate) {
+  if (rule_desc.type == RuleSelfGenerate) {
     out << "\n  generator = 1";
   }
   if (rule_desc.autodeps) {
@@ -251,7 +253,7 @@ void ninja(rules_t const &rules, std::string const &ninja_file,
   }
 
   // Default rule has to be specified for ninja
-  rule_desc_t const *rd = rules.find_by_target("all");
+  rule_desc_t<WithShellTranslation> const *rd = rules.find_by_target("all");
   if (rd != NULL) {
     ninja_output_rule(*rd, out);
     out << "default all\n\n";

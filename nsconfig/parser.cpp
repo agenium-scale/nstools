@@ -303,50 +303,97 @@ static std::string substitute(std::string const &str, cursor_t const &cursor,
 
 // ----------------------------------------------------------------------------
 
-static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
-                       infos_t *pi_) {
+static void replace_in_out(rule_desc_t<WithShellTranslation> *rd_) {
+  rule_desc_t<WithShellTranslation> &rd = *rd_;
+  std::string output(shell::stringify(shell::ify(rd.output)));
+  std::string input(ns2::join(shell::ify(rd.deps), " "));
+  for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+    rd.cmds.data[i] = ns2::replace(rd.cmds.data[i], "@out", output);
+    rd.cmds.data[i] = ns2::replace(rd.cmds.data[i], "@in", input);
+  }
+}
+
+static void replace_in_out(rule_desc_t<WithTokens> *rd_) {
+  rule_desc_t<WithTokens> &rd = *rd_;
+  for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+    for (size_t j = 0; j < rd.cmds.data[i].size(); j++) {
+      if (rd.cmds.data[i][j].text == "@out") {
+        rd.cmds.data[i][j].text = rd.output;
+        rd.cmds.data[i][j].cursor = cursor_t();
+      }
+    }
+  }
+  if (rd.deps.size() == 0) {
+    return;
+  }
+  for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+    for (size_t j = 0; j < rd.cmds.data[i].size(); j++) {
+      if (rd.cmds.data[i][j].text == "@in") {
+        rd.cmds.data[i][j].text = rd.deps[0];
+        rd.cmds.data[i][j].cursor = cursor_t();
+        for (size_t k = 1; k < rd.deps.size(); k++) {
+          token_t token;
+          token.text = rd.deps[k];
+          token.cursor = cursor_t();
+          rd.cmds.data[i].insert(rd.cmds.data[i].begin() + (j + k), token);
+        }
+        j += rd.deps.size() - 1;
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+
+static void replace_item(rule_desc_t<WithShellTranslation> *rd_,
+                         std::string const &replacement_) {
+  rule_desc_t<WithShellTranslation> &rd = *rd_;
+  std::string replacement(shell::ify(replacement_));
+  for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+    rd.cmds.data[i] = ns2::replace(rd.cmds.data[i], "@item", replacement);
+  }
+}
+
+static void replace_item(rule_desc_t<WithTokens> *rd_,
+                         std::string const &replacement) {
+  rule_desc_t<WithTokens> &rd = *rd_;
+  for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+    for (size_t j = 0; j < rd.cmds.data[i].size(); j++) {
+      if (rd.cmds.data[i][j].text == "@item") {
+        rd.cmds.data[i][j].text = replacement;
+        rd.cmds.data[i][j].cursor = cursor_t();
+      }
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+
+template <rule_desc_step step>
+static void add_target(rule_desc_t<step> const &rule_desc,
+                       rules_t *rules, infos_t *pi_) {
   infos_t &pi = *pi_;
 
   // First determine if the rule is a phony or not, if the rule is not
   // marked as phony but does not contain any command then it is in fact
   // a phony.
-  rule_desc_t::type_t rule_type = rule_desc.type;
-  if (rule_desc.type != rule_desc_t::Phony && rule_desc.cmds.size() == 0) {
-    rule_type = rule_desc_t::Phony;
+  rule_desc_type_t rule_type = rule_desc.type;
+  if (rule_desc.type != RulePhony && rule_desc.cmds.data.size() == 0) {
+    rule_type = RulePhony;
   }
 
   switch (rule_desc.type) {
 
   // We treat here simple rules, phony and build_file (build single file)
-  case rule_desc_t::SingleFile:
-  case rule_desc_t::SelfGenerate:
-  case rule_desc_t::Phony: {
+  case RuleSingleFile:
+  case RuleSelfGenerate:
+  case RulePhony: {
 
     // Original rule
-    rule_desc_t rd0(rule_desc);
-    rule_desc_t rd(rule_desc);
-    rd.autodeps_by = pi.current_compiler.type;
+    rule_desc_t<step> rd(rule_desc);
 
     // Replace @in and @out
-    std::string output(shell::stringify(shell::ify(rd0.output)));
-    std::string input(ns2::join(shell::ify(rd0.deps), " "));
-    for (size_t i = 0; i < rd.cmds.size(); i++) {
-      rd0.cmds[i] = ns2::replace(rd0.cmds[i], "@out", output);
-      rd0.cmds[i] = ns2::replace(rd0.cmds[i], "@in", input);
-    }
-
-    // If the rule has autodeps we may need to replace @@autodeps_flags for
-    // header dependencies
-    if (rule_desc.autodeps &&
-        pi.current_compiler.type != compiler::infos_t::None) {
-      std::string flags = shell::autodeps_flags(pi.current_compiler.type,
-                                                rule_desc.autodeps_file);
-      for (size_t i = 0; i < rd.cmds.size(); i++) {
-        rd.cmds[i] = ns2::replace(rd0.cmds[i], "@@autodeps_flags", flags);
-      }
-    } else {
-      rd.cmds = rd0.cmds;
-    }
+    replace_in_out(&rd);
 
     // We add the dependency for self-regeneration for all types of rule
     // if the user demands it
@@ -358,46 +405,75 @@ static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
     rd.fill_for_as_is();
 
     // Check if the rule already exist.
-    rule_desc_t const *erd = rules->find_by_target(rd.target);
+    rule_desc_t<WithShellTranslation> const *erd =
+        rules->find_by_target(rd.target);
     if (erd != NULL) {
       die("rule name '" + rd.target + "' already defined at line " +
               ns2::to_string(erd->cursor.lineno),
           rule_desc.cursor);
     }
 
+    // Do we need a corresponding force rule?
+    bool need_force_rule = (rule_desc.type != RulePhony &&
+                            rule_desc.type != RuleSelfGenerate);
+
+    // Translate commands and get the translations for both the command as-is
+    // and the one aith all the autodeps stuff
+    std::vector<std::string> cmds_for_force_rule;
+    rule_desc_t<WithShellTranslation> rd1;
+    rd1.copy_all_but_cmds(rd);
+    if (rd1.autodeps) {
+      shell::autodeps_t buf;
+      buf.file = rd1.autodeps_file;
+      for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+        std::string cmd(shell::translate(rd.cmds.data[i], &pi, &buf));
+        rd1.cmds.data.push_back(buf.cmd);
+        if (need_force_rule) {
+          cmds_for_force_rule.push_back(cmd);
+        }
+      }
+      rd1.autodeps_by = buf.by;
+    } else {
+      for (size_t i = 0; i < rd.cmds.data.size(); i++) {
+        rd1.cmds.data.push_back(shell::translate(rd.cmds.data[i], &pi, NULL));
+        if (need_force_rule) {
+          cmds_for_force_rule.push_back(rd1.cmds.data.back());
+        }
+      }
+    }
+
     // Add the rule
-    rules->insert(rd.target, rd);
+    rules->insert(rd1.target, rd1);
     if (pi.verbosity >= VERBOSITY_NORMAL) {
-      OUTPUT << "Add new target: '" << rd.target << "'" << std::endl;
+      OUTPUT << "Add new target: '" << rd1.target << "'" << std::endl;
     }
 
     // Add the file to the list of outputs
-    if (rule_type != rule_desc_t::Phony) {
+    if (rule_type != RulePhony) {
       pi.outputs.push_back(ns2::sanitize(rule_desc.output));
     }
 
     // Then add the corresponding "force" rule
-    if (rule_desc.type != rule_desc_t::Phony &&
-        rule_desc.type != rule_desc_t::SelfGenerate) {
+    if (need_force_rule) {
 
-      rd.fill_for_force();
-      rd.autodeps = false;
-      for (size_t i = 0; i < rd.cmds.size(); i++) {
-        rd.cmds[i] = ns2::replace(rd0.cmds[i], "@@autodeps_flags", "");
-      }
+      rd1.fill_for_force();
 
       // Check if the rule already exists
-      rule_desc_t const *erd = rules->find_by_target(rd.target);
+      rule_desc_t<WithShellTranslation> const *erd =
+          rules->find_by_target(rd1.target);
       if (erd != NULL) {
         die("rule name already defined at line " +
                 ns2::to_string(erd->cursor.lineno),
             rule_desc.cursor);
       }
 
+      // Copy translated commands
+      rd1.cmds.data = cmds_for_force_rule;
+
       // Add the rule
-      rules->insert(rd.target, rd);
+      rules->insert(rd1.target, rd1);
       if (pi.verbosity >= VERBOSITY_NORMAL) {
-        OUTPUT << "Add new target: '" << rd.target << "'" << std::endl;
+        OUTPUT << "Add new target: '" << rd1.target << "'" << std::endl;
       }
     }
 
@@ -405,18 +481,18 @@ static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
   }
 
   // We treat here build_files (build a bunch of files)
-  case rule_desc_t::MultipleFiles:
+  case RuleMultipleFiles:
 
     for (size_t i = 0; i < rule_desc.out_ins.size(); i++) {
-      rule_desc_t rd;
+      rule_desc_t<step> rd;
 
       // Build rule of type SingleFile
       rd.output = rule_desc.out_ins[i].first;
-      rd.type = rule_desc_t::SingleFile;
+      rd.type = RuleSingleFile;
       rd.autodeps_file = rd.output + ".d";
-      rd.autodeps_by = pi.current_compiler.type;
       rd.autodeps = rule_desc.autodeps;
       rd.cursor = rule_desc.cursor;
+      rd.cmds.data = rule_desc.cmds.data;
 
       // Compute dependencies (if @item is one of them do string replacement)
       std::string input(shell::ify(rule_desc.out_ins[i].second));
@@ -428,16 +504,12 @@ static void add_target(rule_desc_t const &rule_desc, rules_t *rules,
         }
       }
 
-      // Replace @item
-      rd.type = rule_desc_t::SingleFile;
-      for (size_t j = 0; j < rule_desc.cmds.size(); j++) {
-        rd.cmds.push_back(ns2::replace(rule_desc.cmds[j], "@item", input));
-      }
-      rd.cursor = rule_desc.cursor;
+      // Replace @item within commands
+      replace_item(&rd, input);
 
       // temporarily deactivate verbosity for recursive call
       int temp = pi.verbosity;
-      pi.verbosity = VERBOSITY_QUIET;
+      //pi.verbosity = VERBOSITY_QUIET;
       add_target(rd, rules, &pi);
       pi.verbosity = temp;
     }
@@ -556,7 +628,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
   rules_t &rules = *rules_;
   std::string line;
   cursor_t cursor(in.filename());
-  rule_desc_t rule_desc;
+  rule_desc_t<WithTokens> rule_desc;
   bool first_rule_desc = true;
   infos_t &pi = *pi_;
 
@@ -1012,7 +1084,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
         paths.push_back(tokens[i].text);
       }
 
-      rule_desc_t import_rd;
+      rule_desc_t<WithShellTranslation> import_rd;
       find_lib(&pi.variables, &import_rd, var, header, binary, paths,
                pi.verbosity, libtype, !optional, import);
       // if we must import the shared library, then find_lib will has filled in
@@ -1021,7 +1093,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       if (import) {
         import_rd.cursor = tokens[0].cursor;
         import_rd.autodeps = false;
-        import_rd.type = rule_desc_t::SingleFile;
+        import_rd.type = RuleSingleFile;
         add_target(import_rd, &rules, &pi);
       }
       continue;
@@ -1051,7 +1123,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       }
       first_rule_desc = false;
       rule_desc.clear();
-      rule_desc.type = rule_desc_t::MultipleFiles;
+      rule_desc.type = RuleMultipleFiles;
 
       // sanity check
       if (tokens.size() == 1) {
@@ -1172,11 +1244,8 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
         }
 
         if (tokens[i].text == "autodeps") {
-          pi.generate_header_deps_flags = pi.backend_supports_header_deps;
           rule_desc.autodeps = pi.backend_supports_header_deps;
-          pi.current_compiler.type = compiler::infos_t::None;
         } else {
-          pi.generate_header_deps_flags = false;
           rule_desc.autodeps = false;
         }
 
@@ -1209,9 +1278,9 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       first_rule_desc = false;
       rule_desc.clear();
       if (head == "build_file") {
-        rule_desc.type = rule_desc_t::SingleFile;
+        rule_desc.type = RuleSingleFile;
       } else {
-        rule_desc.type = rule_desc_t::Phony;
+        rule_desc.type = RulePhony;
       }
 
       // sanity check
@@ -1242,12 +1311,10 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       // if the user specified 'autodeps' then we will generate appropriate
       // flags
       if (tokens.size() >= 3 && tokens[2].text == "autodeps") {
-        pi.generate_header_deps_flags = pi.backend_supports_header_deps;
         rule_desc.autodeps_file = rule_desc.output + ".d";
         rule_desc.autodeps = pi.backend_supports_header_deps;
-        pi.current_compiler.type = compiler::infos_t::None;
       } else {
-        pi.generate_header_deps_flags = false;
+        rule_desc.autodeps_file.clear();
         rule_desc.autodeps = false;
       }
 
@@ -1264,7 +1331,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       if (tokens.size() == 0) {
         die("no command given after", tokens[0].cursor);
       }
-      rule_desc.cmds.push_back(shell::translate(tokens, &pi));
+      rule_desc.cmds.data.push_back(tokens);
       continue;
     }
 
@@ -1296,7 +1363,8 @@ static void resolve_force_rule_deps(rules_t *rules, infos_t const &pi) {
       it->second.deps.clear();
       for (size_t i = 0; i < deps.size(); i++) {
         if (deps[i] != pi.output_file) {
-          rule_desc_t *rd = rules->find_force_by_output(deps[i]);
+          rule_desc_t<WithShellTranslation> *rd =
+              rules->find_force_by_output(deps[i]);
           if (rd != NULL) {
             it->second.deps.push_back(rd->target);
           }
@@ -1317,13 +1385,13 @@ static void add_phony_target(infos_t *pi_, rules_t *rules_,
                              bool is_update = false) {
   infos_t &pi = *pi_;
   rules_t &rules = *rules_;
-  rule_desc_t rd;
+  rule_desc_t<WithShellTranslation> rd;
   rd.output = name;
   rd.force = false;
   rd.autodeps = false;
-  rd.type = rule_desc_t::Phony;
+  rd.type = RulePhony;
   rd.deps = deps;
-  rd.cmds = cmds;
+  rd.cmds.data = cmds;
   bool temp = pi.generate_self;
   if (is_update) {
     pi.generate_self = false; // avoid the target to depend on itself
@@ -1467,22 +1535,23 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
 
   // Add target for Makefile or build.ninja
   if (pi.generate_self && ret.find_by_target(pi.output_file) == NULL) {
-    rule_desc_t rd;
+    rule_desc_t<WithShellTranslation> rd;
     rd.output = pi.output_file;
-    rd.type = rule_desc_t::SelfGenerate;
+    rd.type = RuleSelfGenerate;
     rd.force = false;
     rd.autodeps = false;
     rd.deps.push_back(pi.build_nsconfig);
-    rd.cmds.push_back(pi.cmdline);
+    rd.cmds.data.push_back(pi.cmdline);
     if (!pi.backend_supports_self_generation) {
-      rd.cmds.push_back("@echo x");
-      rd.cmds.push_back("@echo x x x");
-      rd.cmds.push_back("@echo x x x x x");
-      rd.cmds.push_back("@echo x x x x x x . . . RERUN " + pi.make_command);
-      rd.cmds.push_back("@echo x x x x x");
-      rd.cmds.push_back("@echo x x x");
-      rd.cmds.push_back("@echo x");
-      rd.cmds.push_back("@exit 99");
+      rd.cmds.data.push_back("@echo x");
+      rd.cmds.data.push_back("@echo x x x");
+      rd.cmds.data.push_back("@echo x x x x x");
+      rd.cmds.data.push_back("@echo x x x x x x . . . RERUN " +
+                             pi.make_command);
+      rd.cmds.data.push_back("@echo x x x x x");
+      rd.cmds.data.push_back("@echo x x x");
+      rd.cmds.data.push_back("@echo x");
+      rd.cmds.data.push_back("@exit 99");
     }
     pi.generate_self = false; // avoid the target to depend on itself
     add_target(rd, &ret, &pi);

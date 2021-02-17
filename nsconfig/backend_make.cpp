@@ -30,10 +30,11 @@ namespace backend {
 
 // ----------------------------------------------------------------------------
 
-static void make_output_rule(rule_desc_t const &rule_desc, ns2::ofile_t &out,
-                             make_t::type_t which) {
+static void
+make_output_rule(rule_desc_t<WithShellTranslation> const &rule_desc,
+                 ns2::ofile_t &out, make_t::type_t which) {
   if (which == make_t::GNU) {
-    if (rule_desc.type == rule_desc_t::Phony || rule_desc.cmds.size() == 0) {
+    if (rule_desc.type == RulePhony || rule_desc.cmds.data.size() == 0) {
       out << ".PHONY: " << rule_desc.target << "\n";
     }
   }
@@ -46,7 +47,7 @@ static void make_output_rule(rule_desc_t const &rule_desc, ns2::ofile_t &out,
     out << " " << ns2::sanitize(rule_desc.deps[i]);
   }
   out << "\n";
-  if (rule_desc.type != rule_desc_t::Phony && rule_desc.cmds.size() > 0 &&
+  if (rule_desc.type != RulePhony && rule_desc.cmds.data.size() > 0 &&
       df.first != "") {
     std::string folder(shell::ify(df.first));
 #ifdef NS2_IS_MSVC
@@ -55,8 +56,8 @@ static void make_output_rule(rule_desc_t const &rule_desc, ns2::ofile_t &out,
     out << "\tmkdir -p " + folder + "\n";
 #endif
   }
-  for (size_t i = 0; i < rule_desc.cmds.size(); i++) {
-    out << "\t" << ns2::replace(rule_desc.cmds[i], "$", "$$") << "\n";
+  for (size_t i = 0; i < rule_desc.cmds.data.size(); i++) {
+    out << "\t" << ns2::replace(rule_desc.cmds.data[i], "$", "$$") << "\n";
   }
   out << "\n";
 }
@@ -92,7 +93,7 @@ void make(rules_t const &rules, std::string const &Makefile,
   // First rule must be 'all' (if it exists), cf. nmake documentation
   // When typing nmake without argument on command line, the first target
   // is executed.
-  rule_desc_t const *rd = rules.find_by_target("all");
+  rule_desc_t<WithShellTranslation> const *rd = rules.find_by_target("all");
   if (rd != NULL) {
     make_output_rule(*rd, out, which);
   }

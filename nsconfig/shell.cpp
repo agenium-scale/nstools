@@ -35,29 +35,29 @@ namespace shell {
 static std::vector<std::string> fcc(std::string const &,
                                     std::vector<parser::token_t> const &,
                                     compiler::infos_t const &,
-                                    parser::infos_t *);
+                                    parser::infos_t const &);
 
 static std::vector<std::string>
 emscripten(std::string const &, std::vector<parser::token_t> const &,
-           compiler::infos_t const &, parser::infos_t *);
+           compiler::infos_t const &, parser::infos_t const &);
 
 static std::vector<std::string> gcc_clang(std::string const &,
                                           std::vector<parser::token_t> const &,
                                           compiler::infos_t const &,
-                                          parser::infos_t *);
+                                          parser::infos_t const &);
 
 static std::vector<std::string>
 hipcc_hcc_dpcpp(std::string const &, std::vector<parser::token_t> const &,
-                compiler::infos_t const &, parser::infos_t *);
+                compiler::infos_t const &, parser::infos_t const &);
 
 static std::vector<std::string> icc(std::string const &,
                                     std::vector<parser::token_t> const &,
                                     compiler::infos_t const &,
-                                    parser::infos_t *);
+                                    parser::infos_t const &);
 
 static std::vector<std::string> msvc(std::vector<parser::token_t> const &,
                                      compiler::infos_t const &,
-                                     parser::infos_t *);
+                                     parser::infos_t const &);
 
 static std::vector<std::string> nvcc(compiler::infos_t const &,
                                      std::vector<parser::token_t> const &,
@@ -358,7 +358,7 @@ find_corresponding_paren(std::vector<parser::token_t> const &tokens,
 // ----------------------------------------------------------------------------
 
 static std::string if_(std::vector<parser::token_t> const &tokens,
-                       parser::infos_t *pi_) {
+                       parser::infos_t *pi_, autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   switch (tokens.size()) {
   case 2:
@@ -401,9 +401,9 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
   }
 
   // parse the then part
-  ret += translate(
-      std::vector<parser::token_t>(tokens.begin() + 5,
-                                   tokens.begin() + long(i)), &pi);
+  ret += translate(std::vector<parser::token_t>(tokens.begin() + 5,
+                                                tokens.begin() + long(i)),
+                   &pi, autodeps_);
 
   // is there an 'else' part or not?
   if (i >= tokens.size() - 1) {
@@ -443,7 +443,7 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
   // parse the else part
   ret += translate(std::vector<parser::token_t>(tokens.begin() + long(i0_else),
                                                 tokens.begin() + long(i)),
-                   &pi);
+                   &pi, autodeps_);
 
 #ifdef NS2_IS_MSVC
   ret += " )";
@@ -458,22 +458,28 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
 
 static std::vector<std::string>
 comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
-     parser::infos_t *pi_) {
+     parser::infos_t *pi_, autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
+  std::vector<std::string> ret;
   switch (ci.type) {
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
-    return gcc_clang(ci.path, tokens, ci, &pi);
+    ret = gcc_clang(ci.path, tokens, ci, pi);
+    break;
   case compiler::infos_t::FCC_trad_mode:
   case compiler::infos_t::FCC_clang_mode:
-    return fcc(ci.path, tokens, ci, &pi);
+    ret = fcc(ci.path, tokens, ci, pi);
+    break;
   case compiler::infos_t::Emscripten:
-    return emscripten(ci.path, tokens, ci, &pi);
+    ret = emscripten(ci.path, tokens, ci, pi);
+    break;
   case compiler::infos_t::MSVC:
-    return msvc(tokens, ci, &pi);
+    ret = msvc(tokens, ci, pi);
+    break;
   case compiler::infos_t::ICC:
-    return icc(ci.path, tokens, ci, &pi);
+    ret = icc(ci.path, tokens, ci, pi);
+    break;
   case compiler::infos_t::NVCC: {
     compiler::infos_t host_ci;
     if (ci.name == "c++" ||
@@ -482,16 +488,36 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
     } else {
       host_ci = compiler::get("c++", &pi);
     }
-    return nvcc(ci, tokens, host_ci, &pi);
+    ret = nvcc(ci, tokens, host_ci, &pi);
+    break;
   }
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
   case compiler::infos_t::DPCpp:
-    return hipcc_hcc_dpcpp(ci.path, tokens, ci, &pi);
+    ret = hipcc_hcc_dpcpp(ci.path, tokens, ci, pi);
+    break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
   }
-  return std::vector<std::string>();
+
+  // There are basically only two  ways compilers handle autodeps. There is
+  // MSVC on one side that needs the "/showIncludes" switch that cannot be
+  // placed anywhere in the command-line. On the other side there all other
+  // compilers we have encounter so far that do as GCC does. So we handle the
+  // autodeps stuff here.
+  if (autodeps_ != NULL) {
+    if (ci.type == compiler::infos_t::MSVC) {
+      autodeps_->by = compiler::infos_t::MSVC;
+      autodeps_->cmd = ns2::join(ret.begin(), ret.begin() + 4, " ") +
+                       " /showIncludes " +
+                       ns2::join(ret.begin() + 4, ret.end(), " ");
+    } else {
+      autodeps_->by = compiler::infos_t::GCC;
+      autodeps_->cmd =
+          ns2::join(ret, " ") + " -MMD -MF " + shell::ify(autodeps_->file);
+    }
+  }
+  return ret;
 }
 
 // ----------------------------------------------------------------------------
@@ -611,10 +637,9 @@ translate_single_arg(std::string const &compiler,
 static std::vector<std::string>
 gcc_clang(std::string const &compiler,
           std::vector<parser::token_t> const &tokens,
-          compiler::infos_t const &ci, parser::infos_t *pi_) {
+          compiler::infos_t const &ci, parser::infos_t const &pi) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
-  parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   args["-std=c89"] = "-std=c89 -pedantic";
   args["-std=c99"] = "-std=c99 -pedantic";
@@ -779,13 +804,6 @@ gcc_clang(std::string const &compiler,
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return uniq(ret);
 }
 
@@ -793,8 +811,7 @@ gcc_clang(std::string const &compiler,
 
 static std::vector<std::string>
 msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
-     parser::infos_t *pi_) {
-  parser::infos_t &pi = *pi_;
+     parser::infos_t const &pi) {
   enum stop_stage_t { Assemble, Compile, CompileLink };
   stop_stage_t stop_stage = CompileLink;
   bool debug_infos = false;
@@ -1037,13 +1054,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
     ret.push_back("/Fd" + resdir);
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's MSVC specific
-  if (pi.generate_header_deps_flags) {
-    ret.push_back("@@autodeps_flags");
-    pi.current_compiler.type = compiler::infos_t::MSVC;
-  }
-
   // add ffast-math compiler flag
   if (ffast_math) {
     ret.push_back("/fp:fast");
@@ -1069,10 +1079,9 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
 static std::vector<std::string> icc(std::string const &compiler,
                                     std::vector<parser::token_t> const &tokens,
                                     compiler::infos_t const &ci,
-                                    parser::infos_t *pi_) {
+                                    parser::infos_t const &pi) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
-  parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   bool ffast_math = false;
 
@@ -1166,13 +1175,6 @@ static std::vector<std::string> icc(std::string const &compiler,
     ret.push_back("-fp-model strict");
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return uniq(ret);
 }
 
@@ -1195,6 +1197,8 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   ret.push_back(ci.path);
   ret.push_back("-ccbin " + host_ci.path);
   ret.push_back("-m" + ns2::to_string(ci.nbits));
+  size_t x_cu_id = ret.size() - 1;
+  bool only_cpp_as_input = true;
   std::map<std::string, std::string> args;
   args["-msm_35"] = "-arch=sm_35";
   args["-msm_50"] = "-arch=sm_50";
@@ -1207,10 +1211,11 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   args["-msm_75"] = "-arch=sm_75";
   args["-c"] = "-c";
   args["-o"] = "-o";
-  args["-x"] = "-x";
   args["-shared"] = "-shared";
   args["-S"] = "--ptx";
   args["-g"] = "-g -G -lineinfo";
+  std::string x_cu_language;
+  bool next_arg_is_output = false;
   for (size_t i = 1; i < tokens.size(); i++) {
     std::string const &arg = tokens[i].text;
     // The effect of --version on the command line is that the compiler
@@ -1221,6 +1226,16 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
       ret.push_back(ci.path);
       ret.push_back("--version");
       return ret;
+    }
+    if (arg == "-x") {
+      if (i == tokens.size() - 1) {
+        die("no language given after", tokens[i].cursor);
+      }
+      i++;
+      x_cu_language = tokens[i].text;
+    }
+    if (arg == "-o") {
+      next_arg_is_output = true;
     }
     // If we do not find the argument in args, we do not emit an error, we
     // pass the argument to the host compiler.
@@ -1276,16 +1291,44 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
         host_tokens.push_back(tokens[i]);
       }
     } else {
+      // By default nvcc treats C++ files as not containing any device code
+      // which is different from hipcc, dpcpp and SYCL compilers. As we want
+      // the "same" behavior for nvcc if the user only provides C++ files to
+      // nvcc then we tell nvcc that they contain CUDA code. If they really
+      // don't then it should not make a difference as the resulting code is
+      // passed to the host compiler. If we see other file extensions then
+      // we let nvcc decide on its own.
+      if (!next_arg_is_output) {
+        if (arg.size() >= 4) {
+          std::string lo_arg(ns2::lower(arg));
+          if (!ns2::endswith(lo_arg, ".cc") &&
+              !ns2::endswith(lo_arg, ".cpp") &&
+              !ns2::endswith(lo_arg, ".cxx")) {
+            only_cpp_as_input = false;
+          }
+        } else {
+          only_cpp_as_input = false;
+        }
+      }
       ret.push_back(stringify(ns2::sanitize(arg)));
+      next_arg_is_output = false;
+    }
+  }
+
+  // Do not forget the -x option if need be. If x_cu_language is not "" then
+  // -x has been given by the user and we pass it as-is to nvcc. Otherwise
+  // we only put a '-x cu' if only C++ source files were given.
+  if (x_cu_language.size() > 0) {
+    ret.insert(ret.begin() + x_cu_id, "-x " + x_cu_language);
+  } else {
+    if (only_cpp_as_input) {
+      ret.insert(ret.begin() + x_cu_id, "-x cu");
     }
   }
 
   // Translate arguments for host compiler, in any case we do not want header
   // dependencies flags as nvcc handles them
-  bool generate_header_deps_flags = pi.generate_header_deps_flags;
-  pi.generate_header_deps_flags = false;
-  std::vector<std::string> host_ret = comp(host_ci, host_tokens, &pi);
-  pi.generate_header_deps_flags = generate_header_deps_flags;
+  std::vector<std::string> host_ret = comp(host_ci, host_tokens, &pi, NULL);
 
   // Remove first argument as it is the name of the executable. Note that
   // for MSVC is it the name of the executable + the making of the directory
@@ -1316,13 +1359,6 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
     ret.push_back("-Xcompiler " + host_args);
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return ret;
 }
 
@@ -1331,10 +1367,9 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 static std::vector<std::string>
 hipcc_hcc_dpcpp(std::string const &compiler,
                 std::vector<parser::token_t> const &tokens,
-                compiler::infos_t const &ci, parser::infos_t *pi_) {
+                compiler::infos_t const &ci, parser::infos_t const &pi) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
-  parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   args["-std=c89"] = "-std=c89 -pedantic";
   args["-std=c99"] = "-std=c99 -pedantic";
@@ -1419,13 +1454,6 @@ hipcc_hcc_dpcpp(std::string const &compiler,
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return uniq(ret);
 }
 
@@ -1434,12 +1462,11 @@ hipcc_hcc_dpcpp(std::string const &compiler,
 static std::vector<std::string>
 emscripten(std::string const &compiler,
            std::vector<parser::token_t> const &tokens,
-           compiler::infos_t const &ci, parser::infos_t *pi_) {
+           compiler::infos_t const &ci, parser::infos_t const &pi) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   ret.push_back("-Wno-version-check");
   ret.push_back("-Wno-emcc");
-  parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
 
   args["-std=c89"] = "-std=c89 -pedantic";
@@ -1522,13 +1549,6 @@ emscripten(std::string const &compiler,
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return uniq(ret);
 }
 
@@ -1537,7 +1557,7 @@ emscripten(std::string const &compiler,
 static std::vector<std::string> fcc(std::string const &compiler,
                                     std::vector<parser::token_t> const &tokens,
                                     compiler::infos_t const &ci,
-                                    parser::infos_t *pi_) {
+                                    parser::infos_t const &pi) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   if (ci.type == compiler::infos_t::FCC_trad_mode) {
@@ -1545,7 +1565,6 @@ static std::vector<std::string> fcc(std::string const &compiler,
   } else {
     ret.push_back("-Nclang");
   }
-  parser::infos_t &pi = *pi_;
   std::map<std::string, std::string> args;
   bool msve = false;
 
@@ -1651,13 +1670,6 @@ static std::vector<std::string> fcc(std::string const &compiler,
     }
   }
 
-  // if we have been asked to output include files then do it and tell the
-  // the parser that it's GCC specific
-  if (pi.generate_header_deps_flags) {
-    pi.current_compiler.type = compiler::infos_t::GCC;
-    ret.push_back("@@autodeps_flags");
-  }
-
   return uniq(ret);
 }
 
@@ -1679,7 +1691,8 @@ bool command_is_compiler(std::string const &cmd) {
 // ----------------------------------------------------------------------------
 
 static std::string single_command(std::vector<parser::token_t> const &tokens,
-                                  parser::infos_t *pi_) {
+                                  parser::infos_t *pi_,
+                                  autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   std::string const &cmd = tokens[0].text;
   if (cmd == "touch") {
@@ -1699,12 +1712,12 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (cmd == "mv") {
     return mv(tokens);
   } else if (cmd == "if") {
-    return if_(tokens, &pi);
+    return if_(tokens, &pi, autodeps_);
   } else if (cmd == "ar") {
     return ar(tokens);
   } else if (command_is_compiler(cmd)) {
     compiler::infos_t ci = compiler::get(cmd, &pi);
-    return ns2::join(comp(ci, tokens, &pi), " ");
+    return ns2::join(comp(ci, tokens, &pi, autodeps_), " ");
   } else if (pi.action == parser::infos_t::Permissive) {
     return raw(tokens);
   } else {
@@ -1715,11 +1728,25 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
 
 // ----------------------------------------------------------------------------
 
+std::string translate(std::string const &cmd, parser::infos_t *,
+                      autodeps_t *autodeps_) {
+  if (autodeps_ != NULL) {
+    autodeps_->cmd = cmd;
+  }
+  return cmd;
+}
+
+// ----------------------------------------------------------------------------
+
 std::string translate(std::vector<parser::token_t> const &tokens,
-                      parser::infos_t *pi_) {
+                      parser::infos_t *pi_, autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   if (pi.action == parser::infos_t::Raw) {
     return raw(tokens);
+    if (autodeps_ != NULL) {
+      autodeps_->cmd.clear();
+      autodeps_->by = compiler::infos_t::None;
+    }
   } else {
     std::string ret;
     for (size_t i0 = 0; i0 < tokens.size();) {
@@ -1734,8 +1761,22 @@ std::string translate(std::vector<parser::token_t> const &tokens,
         ;
 
       // translate previous command
-      ret += single_command(std::vector<parser::token_t>(
-                 tokens.begin() + long(i0), tokens.begin() + long(i1)), &pi);
+      if (autodeps_ != NULL) {
+        autodeps_t buf;
+        buf.by = autodeps_->by; // in case there is no compilation
+        buf.file = autodeps_->file;
+        ret += single_command(
+            std::vector<parser::token_t>(tokens.begin() + long(i0),
+                                         tokens.begin() + long(i1)),
+            &pi, &buf);
+        autodeps_->by = buf.by;
+        autodeps_->cmd += buf.cmd;
+      } else {
+        ret += single_command(
+            std::vector<parser::token_t>(tokens.begin() + long(i0),
+                                         tokens.begin() + long(i1)),
+            &pi, NULL);
+      }
 
       if (i1 >= tokens.size()) {
         break;
@@ -1749,33 +1790,32 @@ std::string translate(std::vector<parser::token_t> const &tokens,
           die("expected file after", tokens[i1 - 1].cursor);
         }
         ret += " " + tokens[i1 - 1].text + tokens[i1].text;
+        if (autodeps_ != NULL) {
+          autodeps_->cmd += " " + tokens[i1 - 1].text + tokens[i1].text;
+        }
       } else if (tokens[i1].text == ";") {
 #ifdef NS2_IS_MSVC
         ret += " & ";
+        if (autodeps_ != NULL) {
+          autodeps_->cmd += " & ";
+        }
 #else
         ret += " ; ";
+        if (autodeps_ != NULL) {
+          autodeps_->cmd += " ; ";
+        }
 #endif
       } else {
         ret += " " + tokens[i1].text + " ";
+        if (autodeps_ != NULL) {
+          autodeps_->cmd += " " + tokens[i1].text + " ";
+        }
       }
 
       // update i0
       i0 = i1 + 1;
     }
     return ret;
-  }
-}
-
-// ----------------------------------------------------------------------------
-
-std::string autodeps_flags(compiler::infos_t::type_t type,
-                           std::string autodeps_file) {
-  if (type == compiler::infos_t::MSVC) {
-    return "/showIncludes";
-  } else if (type == compiler::infos_t::GCC) {
-    return "-MMD -MF " + autodeps_file;
-  } else {
-    NS2_THROW(std::invalid_argument, "compiler must MSVC or GCC");
   }
 }
 

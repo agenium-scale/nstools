@@ -138,9 +138,9 @@ void find_header(parser::variables_t *variables, std::string const &var,
 
 // ----------------------------------------------------------------------------
 
-void find_lib(parser::variables_t *variables, rule_desc_t *rd,
-              std::string const &var, std::string const &header_path,
-              std::string const &binary_path,
+void find_lib(parser::variables_t *variables,
+              rule_desc_t<WithShellTranslation> *rd, std::string const &var,
+              std::string const &header_path, std::string const &binary_path,
               std::vector<std::string> const &paths, int verbosity,
               libtype_t libtype, bool die_on_not_found, bool import_lib) {
   // look for the header first
@@ -219,9 +219,9 @@ void find_lib(parser::variables_t *variables, rule_desc_t *rd,
       rd->target = ldf.second;
       rd->output = ldf.second;
       rd->deps.push_back(lib_filename);
-      rd->cmds.push_back(shell::cp(false, lib_filename, ldf.second));
+      rd->cmds.data.push_back(shell::cp(false, lib_filename, ldf.second));
       if (ns2::lower(lbe.second) == "dll") {
-        rd->cmds.push_back(
+        rd->cmds.data.push_back(
             shell::cp(false, lbe.first + ".lib", llbe.first + ".lib"));
       }
     } else {

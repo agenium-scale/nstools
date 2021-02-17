@@ -34,8 +34,8 @@ enum libtype_t { Dynamic, Static, Automatic };
 
 std::string lib_basename(std::string const &);
 
-void find_lib(parser::variables_t *, rule_desc_t *, std::string const &,
-              std::string const &, std::string const &,
+void find_lib(parser::variables_t *, rule_desc_t<WithShellTranslation> *,
+              std::string const &, std::string const &, std::string const &,
               std::vector<std::string> const &, int, libtype_t, bool, bool);
 
 void find_header(parser::variables_t *, std::string const &,

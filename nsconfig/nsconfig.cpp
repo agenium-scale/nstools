@@ -139,6 +139,13 @@ int main2(int argc, char **argv) {
 #endif
   pi.package_name.clear();
 
+  // Special case of 0 argument
+  if (argc == 1) {
+    help(stdout);
+    fflush(stdout);
+    return 0;
+  }
+
   // parse arguments
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {

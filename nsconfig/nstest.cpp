@@ -135,6 +135,13 @@ int main2(int argc, char **argv) {
   size_t nb_threads = 1;
   verbose = 1;
 
+  // Special case of 0 argument
+  if (argc == 1) {
+    help(stdout);
+    fflush(stdout);
+    return 0;
+  }
+
   // Parse arguments
   for (i0 = 1; i0 < argc; i0++) {
     if (!strcmp(argv[i0], "--help")) {

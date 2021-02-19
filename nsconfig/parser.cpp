@@ -509,7 +509,7 @@ static void add_target(rule_desc_t<step> const &rule_desc,
 
       // temporarily deactivate verbosity for recursive call
       int temp = pi.verbosity;
-      //pi.verbosity = VERBOSITY_QUIET;
+      pi.verbosity = VERBOSITY_QUIET;
       add_target(rd, rules, &pi);
       pi.verbosity = temp;
     }

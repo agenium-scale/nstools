@@ -1,6 +1,6 @@
 // MIT License
 //
-// Copyright (c) 2019 Agenium Scale
+// Copyright (c) 2021 Agenium Scale
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -335,7 +335,7 @@ static void replace_in_out(rule_desc_t<WithTokens> *rd_) {
           token_t token;
           token.text = rd.deps[k];
           token.cursor = cursor_t();
-          rd.cmds.data[i].insert(rd.cmds.data[i].begin() + (j + k), token);
+          rd.cmds.data[i].insert(rd.cmds.data[i].begin() + int(j + k), token);
         }
         j += rd.deps.size() - 1;
       }

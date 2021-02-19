@@ -1319,10 +1319,10 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   // -x has been given by the user and we pass it as-is to nvcc. Otherwise
   // we only put a '-x cu' if only C++ source files were given.
   if (x_cu_language.size() > 0) {
-    ret.insert(ret.begin() + x_cu_id, "-x " + x_cu_language);
+    ret.insert(ret.begin() + int(x_cu_id), "-x " + x_cu_language);
   } else {
     if (only_cpp_as_input) {
-      ret.insert(ret.begin() + x_cu_id, "-x cu");
+      ret.insert(ret.begin() + int(x_cu_id), "-x cu");
     }
   }
 

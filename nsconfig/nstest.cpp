@@ -43,12 +43,7 @@ struct thread_output_t {
 
 typedef thread::work_t<std::vector<std::string> > work_t;
 
-#ifdef NS2_IS_MSVC
-HANDLE mutex_curr_print;
-#else
-pthread_mutex_t mutex_curr_print;
-#endif
-
+thread::cpp_mutex_t mutex_curr_print;
 int nb_print, curr_print;
 
 // ----------------------------------------------------------------------------
@@ -61,44 +56,18 @@ thread_output_t thread_start(work_t *work) {
       break;
     }
     if (verbose >= 1) {
-#ifdef NS2_IS_MSVC
-      DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
-#else
-      int code = pthread_mutex_lock(&mutex_curr_print);
-#endif
+      thread::scoped_lock_t lock(&mutex_curr_print);
       curr_print++;
       printf("-- [%d/%d] Executing %s\n", curr_print, nb_print, exe->c_str());
       fflush(stdout);
-#ifdef NS2_IS_MSVC
-      if (code == WAIT_OBJECT_0) {
-        ReleaseMutex(mutex_curr_print);
-      }
-#else
-      if (code == 0) {
-        pthread_mutex_unlock(&mutex_curr_print);
-      }
-#endif
     }
     std::pair<std::string, int> result = ns2::popen((*exe) + " 2>&1");
     if (verbose >= 1) {
-#ifdef NS2_IS_MSVC
-      DWORD code = WaitForSingleObject(mutex_curr_print, INFINITE);
-#else
-      int code = pthread_mutex_lock(&mutex_curr_print);
-#endif
+      thread::scoped_lock_t lock(&mutex_curr_print);
       curr_print++;
       printf("-- [%d/%d] Return code of %s is %d\n", curr_print, nb_print,
              exe->c_str(), result.second);
       fflush(stdout);
-#ifdef NS2_IS_MSVC
-      if (code == WAIT_OBJECT_0) {
-        ReleaseMutex(mutex_curr_print);
-      }
-#else
-      if (code == 0) {
-        pthread_mutex_unlock(&mutex_curr_print);
-      }
-#endif
     }
     if (result.second != 0) {
       ret.fails.push_back(*exe);
@@ -173,7 +142,8 @@ int main2(int argc, char **argv) {
       i0++;
       break;
     }
-    std::cerr << "";
+    NS2_THROW(std::runtime_error,
+              "unknown argument: " + std::string(argv[i0]));
     return -1;
   }
 
@@ -193,11 +163,11 @@ int main2(int argc, char **argv) {
 #ifdef NS2_IS_MSVC
       exes.push_back(prefix + globbed[i] + suffix);
 #else
-    if (globbed[i].find('/') == std::string::npos) {
-      exes.push_back(prefix + "./" + globbed[i] + suffix);
-    } else {
-      exes.push_back(prefix + globbed[i] + suffix);
-    }
+      if (globbed[i].find('/') == std::string::npos) {
+        exes.push_back(prefix + "./" + globbed[i] + suffix);
+      } else {
+        exes.push_back(prefix + globbed[i] + suffix);
+      }
 #endif
     } else {
       if (verbose >= 2) {

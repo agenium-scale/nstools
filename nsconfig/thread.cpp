@@ -28,6 +28,24 @@ namespace thread {
 
 #ifdef NS2_IS_MSVC
 
+cpp_mutex_t::cpp_mutex_t() {
+  mutex = CreateMutex(NULL, FALSE, NULL);
+  if (mutex == NULL) {
+    NS2_THROW(std::runtime_error, "Unable to initialize mutex");
+  }
+}
+
+void cpp_mutex_t::lock() {
+  if (WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0) {
+    NS2_THROW(std::runtime_error, "Unable to lock mutex");
+  }
+}
+
+// Cannot do error check as it can be called from dtors
+void cpp_mutex_t::unlock() { ReleaseMutex(mutex); }
+
+cpp_mutex_t::~cpp_mutex_t() { CloseHandle(mutex); }
+
 #else
 
 cpp_mutex_t::cpp_mutex_t() {
@@ -44,6 +62,7 @@ void cpp_mutex_t::lock() {
   }
 }
 
+// Cannot do error check as it can be called from dtors
 void cpp_mutex_t::unlock() { pthread_mutex_unlock(&mutex); }
 
 cpp_mutex_t::~cpp_mutex_t() { pthread_mutex_destroy(&mutex); }

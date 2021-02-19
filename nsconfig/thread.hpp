@@ -41,6 +41,40 @@ namespace thread {
 
 // ----------------------------------------------------------------------------
 
+class cpp_mutex_t {
+public:
+#ifdef NS2_IS_MSVC
+  HANDLE mutex;
+#else
+  pthread_mutex_t mutex;
+#endif
+
+  cpp_mutex_t();
+  void lock();
+  void unlock();
+  ~cpp_mutex_t();
+
+private:
+  cpp_mutex_t(cpp_mutex_t const &) {}
+  cpp_mutex_t &operator=(cpp_mutex_t const &) { return *this; }
+};
+
+// ----------------------------------------------------------------------------
+
+class scoped_lock_t {
+  cpp_mutex_t *cpp_mutex_;
+
+public:
+  scoped_lock_t(cpp_mutex_t *);
+  ~scoped_lock_t();
+
+private:
+  scoped_lock_t(scoped_lock_t const &) {}
+  scoped_lock_t &operator=(scoped_lock_t const &) { return *this; }
+};
+
+// ----------------------------------------------------------------------------
+
 template <typename Output, typename Work> struct start_func_t {
   struct param_t {
     Output *output;
@@ -147,40 +181,6 @@ template <typename Container> struct work_t {
 private:
   work_t(work_t const &) {}
   work_t &operator=(work_t const &) {}
-};
-
-// ----------------------------------------------------------------------------
-
-class cpp_mutex_t {
-public:
-#ifdef NS2_IS_MSVC
-  HANDLE mutex;
-#else
-  pthread_mutex_t mutex;
-#endif
-
-  cpp_mutex_t();
-  void lock();
-  void unlock();
-  ~cpp_mutex_t();
-
-private:
-  cpp_mutex_t(cpp_mutex_t const &) {}
-  cpp_mutex_t &operator=(cpp_mutex_t const &) { return *this; }
-};
-
-// ----------------------------------------------------------------------------
-
-class scoped_lock_t {
-  cpp_mutex_t *cpp_mutex_;
-
-public:
-  scoped_lock_t(cpp_mutex_t *);
-  ~scoped_lock_t();
-
-private:
-  scoped_lock_t(scoped_lock_t const &) {}
-  scoped_lock_t &operator=(scoped_lock_t const &) { return *this; }
 };
 
 // ----------------------------------------------------------------------------

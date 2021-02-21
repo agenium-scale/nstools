@@ -21,13 +21,19 @@
 // SOFTWARE.
 
 #include <ns2/exception.hpp>
+#ifdef NS2_IS_MSVC
+#include <windows.h>
+#else
+#include <cerrno>
+#include <cstring>
+#endif
 
 namespace ns2 {
 
 // ----------------------------------------------------------------------------
 
 #ifdef NS2_IS_MSVC
-const char *win_strerror(DWORD code) {
+NS_DLLSPEC const char *win_strerror(DWORD code) {
   __declspec(thread) static char buf[2048];
 
   if (FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM |
@@ -40,6 +46,16 @@ const char *win_strerror(DWORD code) {
   return buf;
 }
 #endif
+
+// ----------------------------------------------------------------------------
+
+NS_DLLSPEC const char *get_last_system_error(void) {
+#ifdef NS2_IS_MSVC
+  return win_strerror(GetLastError());
+#else
+  return strerror(errno);
+#endif
+}
 
 // ----------------------------------------------------------------------------
 

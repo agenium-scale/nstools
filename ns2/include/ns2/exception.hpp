@@ -103,6 +103,8 @@ public:
 NS_DLLSPEC const char *win_strerror(DWORD);
 #endif
 
+NS_DLLSPEC const char *get_last_system_error(void);
+
 // ----------------------------------------------------------------------------
 
 } // namespace ns2

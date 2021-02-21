@@ -66,9 +66,6 @@ parser.obj: parser.cpp parser.hpp
 shell.obj: shell.cpp shell.hpp
 	$(CXX) $(CXX_FLAGS) shell.cpp /Fo$@
 
-thread.obj: thread.cpp thread.hpp
-	$(CXX) $(CXX_FLAGS) thread.cpp /Fo$@
-
 find_exe_lib_header.obj: find_exe_lib_header.cpp find_exe_lib_header.hpp
 	$(CXX) $(CXX_FLAGS) find_exe_lib_header.cpp /Fo$@
 
@@ -85,9 +82,9 @@ nsconfig.exe: string.obj fs.obj process.obj backtrace.obj levenshtein.obj \
 	       lambda.obj $(LD_FLAGS) /Fe$@
 
 nstest.exe: string.obj fs.obj process.obj backtrace.obj nstest.obj \
-            exception.obj thread.obj
-	$(CXX) string.obj fs.obj process.obj backtrace.obj thread.obj \
-	       nstest.obj exception.obj $(LD_FLAGS) /Fe$@
+            exception.obj
+	$(CXX) string.obj fs.obj process.obj backtrace.obj nstest.obj \
+	       exception.obj $(LD_FLAGS) /Fe$@
 
 install: all
 	if not exist %USERPROFILE%\bin md %USERPROFILE%\bin

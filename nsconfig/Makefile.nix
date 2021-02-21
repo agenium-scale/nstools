@@ -69,9 +69,6 @@ parser.o: parser.cpp parser.hpp
 shell.o: shell.cpp shell.hpp
 	$(CXX) $(CXX_FLAGS) shell.cpp -o $@
 
-thread.o: thread.cpp thread.hpp
-	$(CXX) $(CXX_FLAGS) thread.cpp -o $@
-
 find_exe_lib_header.o: find_exe_lib_header.cpp find_exe_lib_header.hpp
 	$(CXX) $(CXX_FLAGS) find_exe_lib_header.cpp -o $@
 
@@ -85,9 +82,8 @@ nsconfig: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
 	       backend_ninja.o backend_make.o compiler.o nsconfig.o parser.o \
 	       lambda.o shell.o find_exe_lib_header.o -o $@
 
-nstest: string.o fs.o process.o backtrace.o thread.o nstest.o
-	$(CXX) string.o fs.o process.o backtrace.o thread.o nstest.o \
-	       -lpthread -o $@
+nstest: string.o fs.o process.o backtrace.o nstest.o
+	$(CXX) string.o fs.o process.o backtrace.o nstest.o -o $@
 
 install: all
 	mkdir -p ~/.local/bin

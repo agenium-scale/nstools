@@ -68,21 +68,47 @@ void help(FILE *out) {
 typedef HANDLE pid_t;
 
 HANDLE spawn(std::string const &exe, std::string const &output) {
-  std::string cmd("cmd.exe /C \"" + exe + " 2>&1 1>" + output + "\"");
+  std::string cmd("cmd.exe /C \"" + exe + "\"");
+  HANDLE ret = -1;
 
   STARTUPINFO si;
   ZeroMemory(&si, sizeof(si));
   si.cb = sizeof(si);
 
+  SECURITY_ATTRIBUTES sa;
+  ZeroMemory(&sa, sizeof(sa));
+  sa.nLength = sizeof(sa);
+  sa.bInheritHandle = TRUE;
+
+  si.hStdOutput = CreateFile(output.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE,
+                             &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (si.hStdOutput == INVALID_HANDLE_VALUE) {
+    return -1;
+  }
+
+  si.hStdError = CreateFile(output.c_str(), GENERIC_WRITE, FILE_SHARE_WRITE,
+                            &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if (si.hStdError == INVALID_HANDLE_VALUE) {
+    goto free_hStdOutput;
+  }
+
   PROCESS_INFORMATION pi;
   ZeroMemory(&pi, sizeof(pi));
 
-  if (CreateProcessA(NULL, cmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW,
+  if (CreateProcessA(NULL, cmd.c_str(), NULL, NULL, TRUE, CREATE_NO_WINDOW,
                      NULL, NULL, &si, &pi) == FALSE) {
-    return -1;
+    goto free_hStdError;
   }
   CloseHandle(pi.hThread); // We don't nedd the handle of the main thread
-  return pi.hProcess;
+  ret = pi.hProcess;
+
+free_hStdError:
+  CloseHandle(si.hStdError);
+
+free_hStdOutput:
+  CloseHandle(si.hStdOutput);
+
+  return ret;
 }
 #else
 extern char **environ;
@@ -259,10 +285,11 @@ int main2(int argc, char **argv) {
         continue;
       }
       if (children[j] == -1) {
-        children[j] = spawn(
-            exes[i], ns2::join_path(directory, ns2::to_string(i) + ".txt"));
-        std::cout << "-- [" << i << "/" << exes.size() << "] exec: " << exes[i]
-                  << '\n';
+        children[j] =
+            spawn(exes[i],
+                  ns2::join_path(directory, ns2::to_string(i + 1) + ".txt"));
+        std::cout << "-- [" << (i + 1) << "/" << exes.size()
+                  << "] exec: " << exes[i] << '\n';
       }
       if (children[j] == -1) {
         fails.push_back(exes[i] + ", cannot exec");
@@ -288,7 +315,7 @@ int main2(int argc, char **argv) {
         if (failed) {
           fails.push_back(
               exes[ids[j]] + ", output in " +
-              ns2::join_path(directory, ns2::to_string(ids[j]) + ".txt"));
+              ns2::join_path(directory, ns2::to_string(ids[j] + 1) + ".txt"));
         }
       }
     }

@@ -109,74 +109,29 @@ template <typename Output, typename Work> struct start_func_t {
 
 // ----------------------------------------------------------------------------
 
-template <typename Container> struct work_t {
+template <typename Container> class work_t {
   Container data_;
   typedef typename Container::value_type value_type;
   typename Container::const_iterator it_;
-#ifdef NS2_IS_MSVC
-  HANDLE mutex_;
+  cpp_mutex_t mutex_;
 
+public:
   work_t(Container const &wc) {
     data_ = wc;
-    mutex_ = CreateMutex(NULL, FALSE, NULL);
-    if (mutex_ == NULL) {
-      NS2_THROW(std::runtime_error, "cannot create mutex");
-    }
     it_ = data_.begin();
   }
 
   value_type const *next() {
-    if (WaitForSingleObject(mutex_, INFINITE) == WAIT_OBJECT_0) {
-      value_type const *ret;
-      if (it_ != data_.end()) {
-        ret = &(*it_);
-        it_++;
-      } else {
-        ret = NULL;
-      }
-      if (ReleaseMutex(mutex_) == 0) {
-        NS2_THROW(std::runtime_error, "cannot release mutex");
-      }
-      return ret;
+    scoped_lock_t lock(&mutex_);
+    value_type const *ret;
+    if (it_ != data_.end()) {
+      ret = &(*it_);
+      it_++;
     } else {
-      NS2_THROW(std::runtime_error, "cannot acquire mutex");
+      ret = NULL;
     }
+    return ret;
   }
-
-  ~work_t() { CloseHandle(mutex_); }
-#else
-  pthread_mutex_t mutex_;
-
-  work_t(Container const &wc) {
-    data_ = wc;
-    pthread_mutex_init(&mutex_, NULL);
-    it_ = data_.begin();
-  }
-
-  value_type const *next() {
-    int code = pthread_mutex_lock(&mutex_);
-    if (code == 0) {
-      value_type const *ret;
-      if (it_ != data_.end()) {
-        ret = &(*it_);
-        it_++;
-      } else {
-        ret = NULL;
-      }
-      code = pthread_mutex_unlock(&mutex_);
-      if (code != 0) {
-        NS2_THROW(std::runtime_error,
-                  std::string("cannot release mutex") + strerror(errno));
-      }
-      return ret;
-    } else {
-      NS2_THROW(std::runtime_error,
-                std::string("cannot acquire mutex") + strerror(code));
-    }
-  }
-
-  ~work_t() { pthread_mutex_destroy(&mutex_); }
-#endif
 
 private:
   work_t(work_t const &) {}

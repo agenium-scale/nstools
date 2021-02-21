@@ -20,62 +20,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#include <ns2/fs.hpp>
+#include <ns2/process.hpp>
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 
-#include "thread.hpp"
-#include <ns2/fs.hpp>
-#include <ns2/process.hpp>
+#ifdef NS2_IS_MSVC
+#include <windows.h>
+#else
+#include <spawn.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/fcntl.h>
+#endif
 
 // ----------------------------------------------------------------------------
 
 int verbose;
-
-// ----------------------------------------------------------------------------
-
-struct thread_output_t {
-  std::vector<std::string> fails;
-  std::string output;
-};
-
-typedef thread::work_t<std::vector<std::string> > work_t;
-
-thread::cpp_mutex_t mutex_curr_print;
-int nb_print, curr_print;
-
-// ----------------------------------------------------------------------------
-
-thread_output_t thread_start(work_t *work) {
-  thread_output_t ret;
-  for (;;) {
-    std::string const *exe = work->next();
-    if (exe == NULL) {
-      break;
-    }
-    if (verbose >= 1) {
-      thread::scoped_lock_t lock(&mutex_curr_print);
-      curr_print++;
-      printf("-- [%d/%d] Executing %s\n", curr_print, nb_print, exe->c_str());
-      fflush(stdout);
-    }
-    std::pair<std::string, int> result = ns2::popen((*exe) + " 2>&1");
-    if (verbose >= 1) {
-      thread::scoped_lock_t lock(&mutex_curr_print);
-      curr_print++;
-      printf("-- [%d/%d] Return code of %s is %d\n", curr_print, nb_print,
-             exe->c_str(), result.second);
-      fflush(stdout);
-    }
-    if (result.second != 0) {
-      ret.fails.push_back(*exe);
-    }
-    ret.output += result.first;
-  }
-  return ret;
-}
 
 // ----------------------------------------------------------------------------
 
@@ -88,6 +53,8 @@ void help(FILE *out) {
   P("");
   P("  --prefix=PREFIX  Prepand executables commands by PREFIX");
   P("  --suffix=SUFFIX  Append executables commands by SUFFIX");
+  P("  --dir=DIR        Put all tests outputs in directory DIR");
+  P("                   Defaults to 'tests-output'");
   P("  -q               Quiet run");
   P("  -v               Verbose run");
   P("  -jN              Run with N threads in parallel");
@@ -97,9 +64,101 @@ void help(FILE *out) {
 
 // ----------------------------------------------------------------------------
 
+#ifdef NS2_IS_MSVC
+typedef HANDLE pid_t;
+
+HANDLE spawn(std::string const &exe, std::string const &output) {
+  std::string cmd("cmd.exe /C \"" + exe + " 2>&1 1>" + output + "\"");
+
+  STARTUPINFO si;
+  ZeroMemory(&si, sizeof(si));
+  si.cb = sizeof(si);
+
+  PROCESS_INFORMATION pi;
+  ZeroMemory(&pi, sizeof(pi));
+
+  if (CreateProcessA(NULL, cmd.c_str(), NULL, NULL, FALSE, CREATE_NO_WINDOW,
+                     NULL, NULL, &si, &pi) == FALSE) {
+    return -1;
+  }
+  CloseHandle(pi.hThread); // We don't nedd the handle of the main thread
+  return pi.hProcess;
+}
+#else
+extern char **environ;
+
+pid_t spawn(std::string const &exe, std::string const &output) {
+  std::vector<char> cmd(exe.size() + 1);
+  memcpy((void *)&cmd[0], (void *)exe.c_str(), exe.size() + 1);
+  char buf[] = "/bin/sh\0-c\0";
+  char *argv[4];
+  argv[0] = &buf[0];
+  argv[1] = &buf[8];
+  argv[2] = &cmd[0];
+  argv[3] = NULL;
+  pid_t pid;
+  posix_spawn_file_actions_t actions;
+  if (posix_spawn_file_actions_init(&actions) != 0) {
+    return -1;
+  }
+  pid = -1;
+  if (posix_spawn_file_actions_addopen(&actions, 1, output.c_str(),
+                                       O_TRUNC | O_CREAT | O_WRONLY,
+                                       0644) == 0 &&
+      posix_spawn_file_actions_addopen(&actions, 2, output.c_str(),
+                                       O_TRUNC | O_CREAT | O_WRONLY,
+                                       0644) == 0 &&
+      posix_spawn_file_actions_addclose(&actions, 0) == 0 &&
+      posix_spawn(&pid, "/bin/sh", &actions, NULL, argv, environ) != 0) {
+    pid = -1;
+  }
+  posix_spawn_file_actions_destroy(&actions);
+  return pid;
+}
+#endif
+
+// ----------------------------------------------------------------------------
+
+#ifdef NS2_IS_MSVC
+pid_t wait_for_children(std::vector<pid_t> const &handles) {
+  std::vector<pid_t> list;
+  for (size_t i = 0; i < handles.size(); i++) {
+    if (handles[i] != -1) {
+      list.push_back(handles[i]);
+    }
+  }
+  DWORD code =
+      WaitForMultipleObjects((DWORD)list.size(), &list[0], FALSE, INFINITE);
+  if (code == WAIT_FAILED) {
+    NS2_THROW(std::runtime_error, "error waiting for children: " +
+                                      std::string(strerror(GetLastError())));
+  }
+  HANDLE hProcess = list[code - WAIT_OBJECT_0];
+  DWORD ExitCode;
+  if (GetExitCodeProcess(hProcess, &ExitCode) == FALSE) {
+    NS2_THROW(std::runtime_error, "error getting exit code: " +
+                                      std::string(strerror(GetLastError())));
+  }
+  CloseHandle(hProcess);
+  return ExitCode == 0 ? hProcess : -hProcess;
+}
+#else
+pid_t wait_for_children(std::vector<pid_t> const &) {
+  int status;
+  pid_t pid = wait(&status);
+  if (pid == -1) {
+    NS2_THROW(std::runtime_error,
+              "error waiting for children: " + std::string(strerror(errno)));
+  }
+  return WEXITSTATUS(status) == 0 ? pid : -pid;
+}
+#endif
+
+// ----------------------------------------------------------------------------
+
 int main2(int argc, char **argv) {
   std::vector<std::string> globbed, exes;
-  std::string suffix, prefix;
+  std::string suffix, prefix, directory;
   int i0 = 1;
   size_t nb_threads = 1;
   verbose = 1;
@@ -124,6 +183,10 @@ int main2(int argc, char **argv) {
     }
     if (!memcmp(argv[i0], "--suffix=", 9)) {
       suffix = " " + std::string(argv[i0] + 9);
+      continue;
+    }
+    if (!memcmp(argv[i0], "--dir=", 6)) {
+      directory = std::string(argv[i0] + 6);
       continue;
     }
     if (!strcmp(argv[i0], "-q")) {
@@ -177,33 +240,65 @@ int main2(int argc, char **argv) {
     }
   }
 
-  // Create work + output
-  nb_print = 2 * ((int)exes.size());
-  curr_print = 0;
-  work_t work(exes);
-  std::vector<thread_output_t> outputs;
+  // Create directory for tests outputs
+  if (directory.size() == 0) {
+    directory = "tests-output";
+  }
+  ns2::mkdir(directory);
 
-  // Do the work
-  thread::pool_work(&outputs, thread_start, nb_threads, &work);
-
-  // Wait for all of them and concatenate the results
+  // Execute all tests
+  std::vector<pid_t> children(nb_threads, (pid_t)-1);
+  std::vector<size_t> ids(nb_threads, 0);
   std::vector<std::string> fails;
-  std::string output;
-  for (size_t i = 0; i < outputs.size(); i++) {
-    fails.insert(fails.end(), outputs[i].fails.begin(),
-                 outputs[i].fails.end());
-    output += "\n" + outputs[i].output;
+  for (size_t i = 0;;) {
+    bool has_children = false;
+    for (size_t j = 0; j < nb_threads && i < exes.size();) {
+      if (children[j] != -1) {
+        has_children = true;
+        j++;
+        continue;
+      }
+      if (children[j] == -1) {
+        children[j] = spawn(
+            exes[i], ns2::join_path(directory, ns2::to_string(i) + ".txt"));
+        std::cout << "-- [" << i << "/" << exes.size() << "] exec: " << exes[i]
+                  << '\n';
+      }
+      if (children[j] == -1) {
+        fails.push_back(exes[i] + ", cannot exec");
+        continue;
+      }
+      ids[j] = i;
+      has_children = true;
+      i++;
+      j++;
+    }
+    if (!has_children) {
+      break;
+    }
+    pid_t pid = wait_for_children(children);
+    bool failed = false;
+    if (pid < 0) {
+      failed = true;
+      pid = -pid;
+    }
+    for (size_t j = 0; j < children.size(); j++) {
+      if (pid == children[j]) {
+        children[j] = -1;
+        if (failed) {
+          fails.push_back(
+              exes[ids[j]] + ", output in " +
+              ns2::join_path(directory, ns2::to_string(ids[j]) + ".txt"));
+        }
+      }
+    }
   }
 
   // Print out summary
   std::cout << "--\n";
-  if (verbose >= 2) {
-    std::cout << "-- OUTPUT:\n" << output << "\n";
-  }
   std::cout << "-- SUMMARY: " << fails.size() << " fails out of "
             << exes.size() << " tests\n";
   if (verbose >= 1) {
-    std::sort(fails.begin(), fails.end());
     for (size_t i = 0; i < fails.size(); i++) {
       std::cout << "-- FAILED: " << fails[i] << std::endl;
     }

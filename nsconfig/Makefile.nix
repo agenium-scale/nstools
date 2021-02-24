@@ -48,6 +48,9 @@ backtrace.o: ../ns2/lib/backtrace.cpp ../ns2/include/ns2/backtrace.hpp
 levenshtein.o: ../ns2/lib/levenshtein.cpp ../ns2/include/ns2/levenshtein.hpp
 	$(CXX) $(CXX_FLAGS) ../ns2/lib/levenshtein.cpp -o $@
 
+exception.o: ../ns2/lib/exception.cpp ../ns2/include/ns2/exception.hpp
+	$(CXX) $(CXX_FLAGS) ../ns2/lib/exception.cpp -o $@
+
 backend_ninja.o: backend_ninja.cpp backend_ninja.hpp
 	$(CXX) $(CXX_FLAGS) backend_ninja.cpp -o $@
 
@@ -82,8 +85,8 @@ nsconfig: string.o fs.o process.o backtrace.o levenshtein.o backend_ninja.o \
 	       backend_ninja.o backend_make.o compiler.o nsconfig.o parser.o \
 	       lambda.o shell.o find_exe_lib_header.o -o $@
 
-nstest: string.o fs.o process.o backtrace.o nstest.o
-	$(CXX) string.o fs.o process.o backtrace.o nstest.o -o $@
+nstest: string.o fs.o process.o backtrace.o nstest.o exception.o
+	$(CXX) string.o fs.o process.o backtrace.o exception.o nstest.o -o $@
 
 install: all
 	mkdir -p ~/.local/bin

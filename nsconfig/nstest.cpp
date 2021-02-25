@@ -116,6 +116,10 @@ free_hStdOutput:
   return ret;
 }
 #else
+// On Unixes, I wanted to just close stdin (== 0) because nstest is supposed
+// to execite automatic tests that do not need any input. But many libraries,
+// programs require a valid input so stdin must be valid and we redirect it
+// from /dev/null.
 extern char **environ;
 const pid_t INVALID_PID = -1;
 
@@ -134,16 +138,27 @@ pid_t spawn(std::string const &exe, std::string const &output) {
     return INVALID_PID;
   }
   pid = INVALID_PID;
-  if (posix_spawn_file_actions_addopen(&actions, 1, output.c_str(),
-                                       O_TRUNC | O_CREAT | O_WRONLY,
-                                       0644) == 0 &&
-      posix_spawn_file_actions_addopen(&actions, 2, output.c_str(),
-                                       O_TRUNC | O_CREAT | O_WRONLY,
-                                       0644) == 0 &&
-      posix_spawn_file_actions_addclose(&actions, 0) == 0 &&
-      posix_spawn(&pid, "/bin/sh", &actions, NULL, argv, environ) != 0) {
+  errno =
+      posix_spawn_file_actions_addopen(&actions, 0, "/dev/null", O_RDONLY, 0);
+  if (errno != 0) {
+    goto lbl_return;
+  }
+  errno = posix_spawn_file_actions_addopen(&actions, 1, output.c_str(),
+                                           O_TRUNC | O_CREAT | O_WRONLY, 0644);
+  if (errno != 0) {
+    goto lbl_return;
+  }
+  errno = posix_spawn_file_actions_addopen(&actions, 2, output.c_str(),
+                                           O_TRUNC | O_CREAT | O_WRONLY, 0644);
+  if (errno != 0) {
+    goto lbl_return;
+  }
+  errno = posix_spawn(&pid, "/bin/sh", &actions, NULL, argv, environ);
+  if (errno != 0) {
     pid = INVALID_PID;
   }
+
+lbl_return:
   posix_spawn_file_actions_destroy(&actions);
   return pid;
 }

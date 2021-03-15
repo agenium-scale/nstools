@@ -60,6 +60,8 @@ std::string get_corresponding_cpp_comp(std::string const &suite) {
     return "em++";
   } else if (suite == "icc") {
     return "icc";
+  } else if (suite == "oneapi") {
+    return "dpcpp";
   } else if (suite == "rocm") {
     return "hipcc";
   } else if (suite == "cuda" || suite == "cuda+gcc" || suite == "cuda+clang" ||

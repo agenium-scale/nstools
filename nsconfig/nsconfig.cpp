@@ -67,6 +67,7 @@ static void help(FILE *out) {
   "                              Emscripten suite for compiling into JS\n"
   "                    icc       Intel C amd C++ compiler\n"
   "                    rocm      Radeon Open Compute compilers\n"
+  "                    oneapi    Intel oneAPI compilers\n"
   "                    cuda, cuda+gcc, cuda+clang, cuda+msvc\n"
   "                              Nvidia CUDA C++ compiler\n"
   "  -comp=COMMAND,COMPILER[,PATH[,VERSION[,ARCHI]]]\n"
@@ -175,7 +176,8 @@ int main2(int argc, char **argv) {
           suite != "armclang" && suite != "icc" && suite != "rocm" &&
           suite != "cuda" && suite != "cuda+gcc" && suite != "cuda+clang" &&
           suite != "cuda+msvc" && suite != "fcc_trad_mode" &&
-          suite != "fcc_clang_mode" && suite != "emscripten") {
+          suite != "fcc_clang_mode" && suite != "emscripten" &&
+          suite != "oneapi") {
         NS2_THROW(std::runtime_error,
                   "unknown suite given at command line: " + suite);
       }

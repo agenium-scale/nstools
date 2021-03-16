@@ -48,21 +48,21 @@ namespace ns2 {
 
 #ifdef NS2_NO_EXCEPTION
 
-#define NS2_THROW(type, msg)                                                  \
+#define NS2_THROW(NS2_THROW_type, NS2_THROW_msg)                              \
   do {                                                                        \
-    std::cerr << (msg) << std::endl;                                          \
+    std::cerr << (NS2_THROW_msg) << std::endl;                                \
     NS2_EXCEPTION_BACKTRACE                                                   \
     abort();                                                                  \
   } while (0)
 
 #else
 
-#define NS2_THROW(type, msg)                                                  \
+#define NS2_THROW(NS2_THROW_type, NS2_THROW_msg)                              \
   do {                                                                        \
-    std::ostringstream os;                                                    \
-    os << (msg) << std::endl;                                                 \
+    std::ostringstream NS2_THROW_os;                                          \
+    NS2_THROW_os << (NS2_THROW_msg) << std::endl;                             \
     NS2_EXCEPTION_BACKTRACE                                                   \
-    throw type(os.str());                                                     \
+    throw NS2_THROW_type(NS2_THROW_os.str());                                 \
   } while (0)
 
 #endif

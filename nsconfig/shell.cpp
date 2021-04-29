@@ -714,7 +714,7 @@ gcc_clang(std::string const &compiler,
   args["-msve512"] = "-march=armv8.2-a+sve -msve-vector-bits=512";
   args["-msve1024"] = "-march=armv8.2-a+sve -msve-vector-bits=1024";
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
-  args["-mvmx"] = "-mcpu=powerpc64el -maltivec";
+  args["-mvmx"] = "-mcpu=powerpc64le -maltivec";
   args["-mvsx"] = "-mcpu=powerpc64le -mvsx";
   if (ci.type == compiler::infos_t::GCC) {
     args["-msm_35"] = "";
@@ -750,6 +750,9 @@ gcc_clang(std::string const &compiler,
   } else if (ci.arch == compiler::infos_t::AARCH64) {
     args["-mfma"] = "";
     args["-mfp16"] = "-mfp16-format=ieee -march=armv8.2-a+fp16";
+  } else if (ci.arch == compiler::infos_t::PPC64EL) {
+    args["-mfma"] = "";
+    args["-mfp16"] = "";
   }
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";

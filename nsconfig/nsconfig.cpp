@@ -87,6 +87,7 @@ static void help(FILE *out) {
   "                    armel    ARMv5 and ARMv6 32-bits ISA\n"
   "                    armhf    ARMv7 32-bits ISA\n"
   "                    aarch64  ARM 64-bits ISA\n"
+  "                    ppc64el  PowerPC 64-bits little entian\n"
   "                    wasm32   WebAssembly with 32-bits memory indexing\n"
   "                    wasm64   WebAssembly with 64-bits memory indexing\n"
   "                  Supported COMPILER:\n"

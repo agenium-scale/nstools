@@ -714,8 +714,8 @@ gcc_clang(std::string const &compiler,
   args["-msve512"] = "-march=armv8.2-a+sve -msve-vector-bits=512";
   args["-msve1024"] = "-march=armv8.2-a+sve -msve-vector-bits=1024";
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
-  args["-maltivec"] = "-maltivec";
-  args["-mcpu=power7"] = "-mcpu=power7";
+  args["-mvmx"] = "-mcpu=powerpc64el -maltivec";
+  args["-mvsx"] = "-mcpu=powerpc64le -mvsx";
   if (ci.type == compiler::infos_t::GCC) {
     args["-msm_35"] = "";
     args["-msm_50"] = "";
@@ -899,8 +899,8 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-shared"] = "/LD";
   args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
-  args["-maltivec"] = "";
-  args["-mcpu=power7"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
   args["-msm_53"] = "";
@@ -1133,8 +1133,8 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-shared"] = "-shared";
   args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
-  args["-maltivec"] = "";
-  args["-mcpu=power7"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
   args["-msm_53"] = "";
@@ -1413,8 +1413,8 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-msve512"] = "";
   args["-msve1024"] = "";
   args["-msve2048"] = "";
-  args["-maltivec"] = "";
-  args["-mcpu=power7"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
   args["-msm_35"] = "--cuda-gpu-arch=sm_35";
   args["-msm_50"] = "--cuda-gpu-arch=sm_50";
   args["-msm_53"] = "--cuda-gpu-arch=sm_53";
@@ -1516,8 +1516,8 @@ emscripten(std::string const &compiler,
   args["-shared"] = "-shared";
   args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
-  args["-maltivec"] = "";
-  args["-mcpu=power7"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
   args["-msm_53"] = "";
@@ -1621,8 +1621,8 @@ static std::vector<std::string> fcc(std::string const &compiler,
   args["-shared"] = "-shared";
   args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "";
-  args["-maltivec"] = "";
-  args["-mcpu=power7"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
   args["-msm_53"] = "";

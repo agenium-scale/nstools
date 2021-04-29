@@ -163,6 +163,9 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
   } else if (str == "aarch64") {
     ci.arch = compiler::infos_t::AARCH64;
     ci.nbits = 64;
+  } else if (str == "ppc64el") {
+    ci.arch = compiler::infos_t::PPC64EL;
+    ci.nbits = 64;
   } else if (str == "x86") {
     ci.arch = compiler::infos_t::Intel;
     ci.nbits = 32;
@@ -601,6 +604,9 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "printf(\"wasm32\");\n"
         "#elif defined(__wasm64) || defined(__wasm64__)\n"
         "printf(\"wasm64\");\n"
+        "#elif (defined(__PPC64__) || defined(_ARCH_PPC64)) && "
+        "(defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__))\n"
+        "printf(\"ppc64el\");\n"
         "#endif", verbosity);
     if (code.second) {
       NS2_THROW(std::runtime_error, "Cannot find " + get_type_str(ci.type) +

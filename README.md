@@ -255,7 +255,7 @@ Disable automatic generation of the `package` rule.
 
 Disable automatic generation of the `install` rule.
 
-### `set var = value`
+### `(set | lambda) var = value`
 
 Set value of variable `var` to `value`. `Value` can be one of the following.
 
@@ -277,6 +277,23 @@ Set value of variable `var` to `value`. `Value` can be one of the following.
 * `@exe_ext`: extension of an executable, usually "" on Linux and ".exe" on
               Windows.
 * `@prefix`: Installation prefix as given by the `-prefix` command-line switch.
+
+When a lambda is set the '*' contained in `value` will be replaced by anything
+non-empty when trying to find the variable name. Here is an example:
+
+```
+ifnot_set "Parameter (can be 0, 1, ... 9)" param = 0
+
+lambda cmd_for_0 = foo
+lambda cmd_for_5 = bar
+lambda_cmd_for_* = default_value
+
+set cmd = ${lambda_for_$param$}
+```
+
+The `cmd` variables will have value `foo` when `param` is `0`, value `bar` when
+`param` is `5` and finally value `default_value` for any non-empty value of
+param.
 
 ### `package_name`
 
@@ -566,6 +583,8 @@ compiler:
 - `-mavx512_skylake`: enable AVX512 extensions as found on Skylake chips.
 - `-mneon128`: enable ARMv7 NEON 128 bits extensions.
 - `-maarch64`: enable Advanced SIMD extensions.
+- `-mvmx`: enable PowerPC VMX extensions.
+- `-mvsx`: enable PowerPC VSX extensions.
 - `-msve`: enable SVE extensions.
 - `-msve128`: enable SVE extensions for fixed sized vectors of 128 bits.
 - `-msve256`: enable SVE extensions for fixed sized vectors of 256 bits.

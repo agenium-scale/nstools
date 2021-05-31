@@ -69,7 +69,7 @@ mkdir -p "${BUILD_DIR}"
  mysudo cp -rv * "${PREFIX}/bin")
 
 # Some JS modules are necessary
-(cd ${PREFIX}/bin && mysudo npm instlal acorn)
+(cd ${PREFIX}/bin && mysudo npm install acorn)
 
 # Create corresponding modulefile
 mysudo mkdir -p ${MODULE_PATH}

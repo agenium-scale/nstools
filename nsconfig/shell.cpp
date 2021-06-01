@@ -1525,7 +1525,7 @@ emscripten(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
-  args["-mwasm_simd128"] = "-mwasm_simd128";
+  args["-mwasm_simd128"] = "-msimd128";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
   args["-msm_53"] = "";

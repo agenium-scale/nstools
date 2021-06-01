@@ -716,7 +716,6 @@ gcc_clang(std::string const &compiler,
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
   args["-mvmx"] = "-mcpu=powerpc64le -maltivec";
   args["-mvsx"] = "-mcpu=powerpc64le -mvsx";
-  args["-mwasm_simd128"] = "-msimd128";
   if (ci.type == compiler::infos_t::GCC) {
     args["-msm_35"] = "";
     args["-msm_50"] = "";
@@ -727,6 +726,7 @@ gcc_clang(std::string const &compiler,
     args["-msm_70"] = "";
     args["-msm_72"] = "";
     args["-msm_75"] = "";
+    args["-mwasm_simd128"] = "";
   } else {
     args["-msm_35"] = "--cuda-gpu-arch=sm_35";
     args["-msm_50"] = "--cuda-gpu-arch=sm_50";
@@ -737,6 +737,7 @@ gcc_clang(std::string const &compiler,
     args["-msm_70"] = "--cuda-gpu-arch=sm_70";
     args["-msm_72"] = "--cuda-gpu-arch=sm_72";
     args["-msm_75"] = "--cuda-gpu-arch=sm_75";
+    args["-mwasm_simd128"] = "-msimd128";
   }
 
   if (ci.arch == compiler::infos_t::Intel) {

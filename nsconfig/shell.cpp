@@ -1728,7 +1728,7 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (command_is_compiler(cmd)) {
     compiler::infos_t ci = compiler::get(cmd, &pi);
     return ns2::join(comp(ci, tokens, &pi, autodeps_), " ");
-  } else if (pi.action == parser::infos_t::Permissive) {
+  } else if (pi.action == parser::infos_t::Raw) {
     return raw(tokens);
   } else {
     die("unknown command", tokens[0].cursor);

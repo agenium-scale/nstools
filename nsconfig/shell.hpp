@@ -39,8 +39,10 @@ struct autodeps_t {
 
 // ----------------------------------------------------------------------------
 
-std::string translate(std::string const &, parser::infos_t *, autodeps_t *);
-std::string translate(std::vector<parser::token_t> const &, parser::infos_t *,
+std::string translate(std::string const &, parser::infos_t::action_t,
+                      parser::infos_t *, autodeps_t *);
+std::string translate(std::vector<parser::token_t> const &,
+                      parser::infos_t::action_t, parser::infos_t *,
                       autodeps_t * = NULL);
 std::string stringify(std::string const &);
 std::string ify(std::string const &);

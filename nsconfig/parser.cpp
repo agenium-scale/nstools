@@ -418,7 +418,7 @@ static void add_target(rule_desc_t<step> const &rule_desc,
                             rule_desc.type != RuleSelfGenerate);
 
     // Translate commands and get the translations for both the command as-is
-    // and the one aith all the autodeps stuff
+    // and the one with all the autodeps stuff
     std::vector<std::string> cmds_for_force_rule;
     rule_desc_t<WithShellTranslation> rd1;
     rd1.copy_all_but_cmds(rd);
@@ -426,7 +426,8 @@ static void add_target(rule_desc_t<step> const &rule_desc,
       shell::autodeps_t buf;
       buf.file = rd1.autodeps_file;
       for (size_t i = 0; i < rd.cmds.data.size(); i++) {
-        std::string cmd(shell::translate(rd.cmds.data[i], &pi, &buf));
+        std::string cmd(shell::translate(rd.cmds.data[i],
+                                         rd.cmds.get_action(i), &pi, &buf));
         rd1.cmds.data.push_back(buf.cmd);
         if (need_force_rule) {
           cmds_for_force_rule.push_back(cmd);
@@ -435,7 +436,8 @@ static void add_target(rule_desc_t<step> const &rule_desc,
       rd1.autodeps_by = buf.by;
     } else {
       for (size_t i = 0; i < rd.cmds.data.size(); i++) {
-        rd1.cmds.data.push_back(shell::translate(rd.cmds.data[i], &pi, NULL));
+        rd1.cmds.data.push_back(shell::translate(
+            rd.cmds.data[i], rd.cmds.get_action(i), &pi, NULL));
         if (need_force_rule) {
           cmds_for_force_rule.push_back(rd1.cmds.data.back());
         }
@@ -1087,7 +1089,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
       rule_desc_t<WithShellTranslation> import_rd;
       find_lib(&pi.variables, &import_rd, var, header, binary, paths,
                pi.verbosity, libtype, !optional, import);
-      // if we must import the shared library, then find_lib will has filled in
+      // if we must import the shared library, then find_lib will be filled in
       // import_rd with output, dependencies and commands, the rest we have to
       // fill it here
       if (import) {
@@ -1332,6 +1334,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
         die("no command given after", tokens[0].cursor);
       }
       rule_desc.cmds.data.push_back(tokens);
+      rule_desc.cmds.actions.push_back(pi.action);
       continue;
     }
 

@@ -358,6 +358,7 @@ find_corresponding_paren(std::vector<parser::token_t> const &tokens,
 // ----------------------------------------------------------------------------
 
 static std::string if_(std::vector<parser::token_t> const &tokens,
+                       parser::infos_t::action_t action,
                        parser::infos_t *pi_, autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   switch (tokens.size()) {
@@ -403,7 +404,7 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
   // parse the then part
   ret += translate(std::vector<parser::token_t>(tokens.begin() + 5,
                                                 tokens.begin() + long(i)),
-                   &pi, autodeps_);
+                   action, &pi, autodeps_);
 
   // is there an 'else' part or not?
   if (i >= tokens.size() - 1) {
@@ -443,7 +444,7 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
   // parse the else part
   ret += translate(std::vector<parser::token_t>(tokens.begin() + long(i0_else),
                                                 tokens.begin() + long(i)),
-                   &pi, autodeps_);
+                   action, &pi, autodeps_);
 
 #ifdef NS2_IS_MSVC
   ret += " )";
@@ -1701,6 +1702,7 @@ bool command_is_compiler(std::string const &cmd) {
 // ----------------------------------------------------------------------------
 
 static std::string single_command(std::vector<parser::token_t> const &tokens,
+                                  parser::infos_t::action_t action,
                                   parser::infos_t *pi_,
                                   autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
@@ -1722,13 +1724,14 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
   } else if (cmd == "mv") {
     return mv(tokens);
   } else if (cmd == "if") {
-    return if_(tokens, &pi, autodeps_);
+    return if_(tokens, action, &pi, autodeps_);
   } else if (cmd == "ar") {
     return ar(tokens);
   } else if (command_is_compiler(cmd)) {
     compiler::infos_t ci = compiler::get(cmd, &pi);
     return ns2::join(comp(ci, tokens, &pi, autodeps_), " ");
-  } else if (pi.action == parser::infos_t::Raw) {
+  } else if (action == parser::infos_t::Raw ||
+             action == parser::infos_t::Permissive) {
     return raw(tokens);
   } else {
     die("unknown command", tokens[0].cursor);
@@ -1738,8 +1741,8 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
 
 // ----------------------------------------------------------------------------
 
-std::string translate(std::string const &cmd, parser::infos_t *,
-                      autodeps_t *autodeps_) {
+std::string translate(std::string const &cmd, parser::infos_t::action_t,
+                      parser::infos_t *, autodeps_t *autodeps_) {
   if (autodeps_ != NULL) {
     autodeps_->cmd = cmd;
   }
@@ -1749,7 +1752,8 @@ std::string translate(std::string const &cmd, parser::infos_t *,
 // ----------------------------------------------------------------------------
 
 std::string translate(std::vector<parser::token_t> const &tokens,
-                      parser::infos_t *pi_, autodeps_t *autodeps_) {
+                      parser::infos_t::action_t action, parser::infos_t *pi_,
+                      autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   if (pi.action == parser::infos_t::Raw) {
     return raw(tokens);
@@ -1778,14 +1782,14 @@ std::string translate(std::vector<parser::token_t> const &tokens,
         ret += single_command(
             std::vector<parser::token_t>(tokens.begin() + long(i0),
                                          tokens.begin() + long(i1)),
-            &pi, &buf);
+            action, &pi, &buf);
         autodeps_->by = buf.by;
         autodeps_->cmd += buf.cmd;
       } else {
         ret += single_command(
             std::vector<parser::token_t>(tokens.begin() + long(i0),
                                          tokens.begin() + long(i1)),
-            &pi, NULL);
+            action, &pi, NULL);
       }
 
       if (i1 >= tokens.size()) {

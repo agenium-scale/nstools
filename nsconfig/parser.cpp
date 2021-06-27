@@ -494,7 +494,7 @@ static void add_target(rule_desc_t<step> const &rule_desc,
       rd.autodeps_file = rd.output + ".d";
       rd.autodeps = rule_desc.autodeps;
       rd.cursor = rule_desc.cursor;
-      rd.cmds.data = rule_desc.cmds.data;
+      rd.cmds = rule_desc.cmds;
 
       // Compute dependencies (if @item is one of them do string replacement)
       std::string input(shell::ify(rule_desc.out_ins[i].second));

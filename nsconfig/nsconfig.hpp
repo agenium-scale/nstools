@@ -70,12 +70,17 @@ template <rule_desc_step step> struct cmds_t {};
 template <> struct cmds_t<WithShellTranslation> {
   std::vector<std::string> data;
   parser::infos_t::action_t get_action(size_t) { return parser::infos_t::Raw; }
+  void clear() { data.clear(); }
 };
 
 template <> struct cmds_t<WithTokens> {
   std::vector<std::vector<parser::token_t> > data;
   std::vector<parser::infos_t::action_t> actions;
   parser::infos_t::action_t get_action(size_t i) { return actions[i]; }
+  void clear() {
+    data.clear();
+    actions.clear();
+  }
 };
 
 enum rule_desc_type_t {
@@ -131,7 +136,7 @@ template <rule_desc_step step> struct rule_desc_t {
   void clear() {
     output.clear();
     deps.clear();
-    cmds.data.clear();
+    cmds.clear();
     out_ins.clear();
   }
 };

@@ -886,12 +886,12 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-mavx512_knl"] = "/arch:AVX512";
   args["-mavx512_skylake"] = "/arch:AVX512";
   if (ci.arch == compiler::infos_t::ARMEL) {
-    args["-mneon64"] = "/arch:VFPv4";
-    args["-mneon128"] = "/arch:VFPv4";
+    args["-mfma"] = "/arch:VFPv4";
   } else {
-    args["-mneon64"] = "";
-    args["-mneon128"] = "";
+    args["-mfma"] = "";
   }
+  args["-mneon64"] = "";
+  args["-mneon128"] = "";
   args["-maarch64"] = "";
   args["-msve"] = "";
   args["-msve128"] = "";
@@ -899,7 +899,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-msve512"] = "";
   args["-msve1024"] = "";
   args["-msve2048"] = "";
-  args["-mfma"] = "";
   args["-mfp16"] = "";
   args["-fopenmp"] = "/openmp";
   args["-shared"] = "/LD";

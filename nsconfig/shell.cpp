@@ -35,34 +35,39 @@ namespace shell {
 static std::vector<std::string> fcc(std::string const &,
                                     std::vector<parser::token_t> const &,
                                     compiler::infos_t const &,
-                                    parser::infos_t const &);
+                                    parser::infos_t const &,
+                                    parser::infos_t::action_t);
 
 static std::vector<std::string>
 emscripten(std::string const &, std::vector<parser::token_t> const &,
-           compiler::infos_t const &, parser::infos_t const &);
+           compiler::infos_t const &, parser::infos_t const &,
+           parser::infos_t::action_t);
 
 static std::vector<std::string> gcc_clang(std::string const &,
                                           std::vector<parser::token_t> const &,
                                           compiler::infos_t const &,
-                                          parser::infos_t const &);
+                                          parser::infos_t const &,
+                                          parser::infos_t::action_t);
 
 static std::vector<std::string>
 hipcc_hcc_dpcpp(std::string const &, std::vector<parser::token_t> const &,
-                compiler::infos_t const &, parser::infos_t const &);
+                compiler::infos_t const &, parser::infos_t const &,
+                parser::infos_t::action_t);
 
 static std::vector<std::string> icc(std::string const &,
                                     std::vector<parser::token_t> const &,
                                     compiler::infos_t const &,
-                                    parser::infos_t const &);
+                                    parser::infos_t const &,
+                                    parser::infos_t::action_t);
 
 static std::vector<std::string> msvc(std::vector<parser::token_t> const &,
                                      compiler::infos_t const &,
-                                     parser::infos_t const &);
+                                     parser::infos_t const &,
+                                     parser::infos_t::action_t);
 
-static std::vector<std::string> nvcc(compiler::infos_t const &,
-                                     std::vector<parser::token_t> const &,
-                                     compiler::infos_t const &,
-                                     parser::infos_t *);
+static std::vector<std::string>
+nvcc(compiler::infos_t const &, std::vector<parser::token_t> const &,
+     compiler::infos_t const &, parser::infos_t *, parser::infos_t::action_t);
 
 // ----------------------------------------------------------------------------
 
@@ -459,27 +464,28 @@ static std::string if_(std::vector<parser::token_t> const &tokens,
 
 static std::vector<std::string>
 comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
-     parser::infos_t *pi_, autodeps_t *autodeps_) {
+     parser::infos_t *pi_, parser::infos_t::action_t action,
+     autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
   std::vector<std::string> ret;
   switch (ci.type) {
   case compiler::infos_t::GCC:
   case compiler::infos_t::Clang:
   case compiler::infos_t::ARMClang:
-    ret = gcc_clang(ci.path, tokens, ci, pi);
+    ret = gcc_clang(ci.path, tokens, ci, pi, action);
     break;
   case compiler::infos_t::FCC_trad_mode:
   case compiler::infos_t::FCC_clang_mode:
-    ret = fcc(ci.path, tokens, ci, pi);
+    ret = fcc(ci.path, tokens, ci, pi, action);
     break;
   case compiler::infos_t::Emscripten:
-    ret = emscripten(ci.path, tokens, ci, pi);
+    ret = emscripten(ci.path, tokens, ci, pi, action);
     break;
   case compiler::infos_t::MSVC:
-    ret = msvc(tokens, ci, pi);
+    ret = msvc(tokens, ci, pi, action);
     break;
   case compiler::infos_t::ICC:
-    ret = icc(ci.path, tokens, ci, pi);
+    ret = icc(ci.path, tokens, ci, pi, action);
     break;
   case compiler::infos_t::NVCC: {
     compiler::infos_t host_ci;
@@ -489,13 +495,13 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
     } else {
       host_ci = compiler::get("c++", &pi);
     }
-    ret = nvcc(ci, tokens, host_ci, &pi);
+    ret = nvcc(ci, tokens, host_ci, &pi, action);
     break;
   }
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
   case compiler::infos_t::DPCpp:
-    ret = hipcc_hcc_dpcpp(ci.path, tokens, ci, pi);
+    ret = hipcc_hcc_dpcpp(ci.path, tokens, ci, pi, action);
     break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
@@ -571,7 +577,8 @@ static std::vector<std::string>
 translate_single_arg(std::string const &compiler,
                      std::map<std::string, std::string> const &args,
                      compiler::infos_t const &ci, parser::token_t const &token,
-                     parser::infos_t const &pi) {
+                     parser::infos_t const &pi,
+                     parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   std::string const &arg = token.text;
   if (arg == "-lpthread" || arg == "-lm") {
@@ -621,7 +628,7 @@ translate_single_arg(std::string const &compiler,
           WARNING << "Option " << arg << " is not supported or known by "
                   << compiler << ", ignoring it" << std::endl;
         }
-      } else if (pi.action == parser::infos_t::Permissive) {
+      } else if (action == parser::infos_t::Permissive) {
         ret.push_back(arg);
       } else {
         die("unknown compiler option", token.cursor);
@@ -638,7 +645,8 @@ translate_single_arg(std::string const &compiler,
 static std::vector<std::string>
 gcc_clang(std::string const &compiler,
           std::vector<parser::token_t> const &tokens,
-          compiler::infos_t const &ci, parser::infos_t const &pi) {
+          compiler::infos_t const &ci, parser::infos_t const &pi,
+          parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   std::map<std::string, std::string> args;
@@ -806,7 +814,7 @@ gcc_clang(std::string const &compiler,
     }
 
     std::vector<std::string> buf =
-        translate_single_arg(compiler, args, ci, tokens[i], pi);
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
@@ -817,7 +825,7 @@ gcc_clang(std::string const &compiler,
 
 static std::vector<std::string>
 msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
-     parser::infos_t const &pi) {
+     parser::infos_t const &pi, parser::infos_t::action_t action) {
   enum stop_stage_t { Assemble, Compile, CompileLink };
   stop_stage_t stop_stage = CompileLink;
   bool debug_infos = false;
@@ -1005,7 +1013,7 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
             WARNING << "Option " << arg << " is not supported or known by msvc"
                     << ", ignoring it" << std::endl;
           }
-        } else if (pi.action == parser::infos_t::Permissive) {
+        } else if (action == parser::infos_t::Permissive) {
           ret.push_back(arg);
         } else {
           parser::die("unknown compiler option", tokens[i].cursor);
@@ -1085,7 +1093,8 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
 static std::vector<std::string> icc(std::string const &compiler,
                                     std::vector<parser::token_t> const &tokens,
                                     compiler::infos_t const &ci,
-                                    parser::infos_t const &pi) {
+                                    parser::infos_t const &pi,
+                                    parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   std::map<std::string, std::string> args;
@@ -1172,7 +1181,7 @@ static std::vector<std::string> icc(std::string const &compiler,
     }
 
     std::vector<std::string> buf =
-        translate_single_arg(compiler, args, ci, tokens[i], pi);
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
@@ -1189,7 +1198,8 @@ static std::vector<std::string> icc(std::string const &compiler,
 
 static std::vector<std::string>
 nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
-     compiler::infos_t const &host_ci, parser::infos_t *pi_) {
+     compiler::infos_t const &host_ci, parser::infos_t *pi_,
+     parser::infos_t::action_t action) {
   // NVCC does not support much options, almost all of them are to be passed
   // to the host compiler. The logic here is different than for other
   // compilers: we remove from `tokens` arguments that are nvcc specific,
@@ -1335,7 +1345,8 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 
   // Translate arguments for host compiler, in any case we do not want header
   // dependencies flags as nvcc handles them
-  std::vector<std::string> host_ret = comp(host_ci, host_tokens, &pi, NULL);
+  std::vector<std::string> host_ret =
+      comp(host_ci, host_tokens, &pi, action, NULL);
 
   // Remove first argument as it is the name of the executable. Note that
   // for MSVC is it the name of the executable + the making of the directory
@@ -1374,7 +1385,8 @@ nvcc(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
 static std::vector<std::string>
 hipcc_hcc_dpcpp(std::string const &compiler,
                 std::vector<parser::token_t> const &tokens,
-                compiler::infos_t const &ci, parser::infos_t const &pi) {
+                compiler::infos_t const &ci, parser::infos_t const &pi,
+                parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   std::map<std::string, std::string> args;
@@ -1458,7 +1470,7 @@ hipcc_hcc_dpcpp(std::string const &compiler,
       return ret;
     }
     std::vector<std::string> buf =
-        translate_single_arg(compiler, args, ci, tokens[i], pi);
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
@@ -1470,7 +1482,8 @@ hipcc_hcc_dpcpp(std::string const &compiler,
 static std::vector<std::string>
 emscripten(std::string const &compiler,
            std::vector<parser::token_t> const &tokens,
-           compiler::infos_t const &ci, parser::infos_t const &pi) {
+           compiler::infos_t const &ci, parser::infos_t const &pi,
+           parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   ret.push_back("-Wno-version-check");
@@ -1554,7 +1567,7 @@ emscripten(std::string const &compiler,
     }
 
     std::vector<std::string> buf =
-        translate_single_arg(compiler, args, ci, tokens[i], pi);
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
@@ -1566,7 +1579,8 @@ emscripten(std::string const &compiler,
 static std::vector<std::string> fcc(std::string const &compiler,
                                     std::vector<parser::token_t> const &tokens,
                                     compiler::infos_t const &ci,
-                                    parser::infos_t const &pi) {
+                                    parser::infos_t const &pi,
+                                    parser::infos_t::action_t action) {
   std::vector<std::string> ret;
   ret.push_back(compiler);
   if (ci.type == compiler::infos_t::FCC_trad_mode) {
@@ -1668,7 +1682,7 @@ static std::vector<std::string> fcc(std::string const &compiler,
       msve = true;
     }
     std::vector<std::string> buf =
-        translate_single_arg(compiler, args, ci, tokens[i], pi);
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
     ret.insert(ret.end(), buf.begin(), buf.end());
   }
 
@@ -1728,7 +1742,7 @@ static std::string single_command(std::vector<parser::token_t> const &tokens,
     return ar(tokens);
   } else if (command_is_compiler(cmd)) {
     compiler::infos_t ci = compiler::get(cmd, &pi);
-    return ns2::join(comp(ci, tokens, &pi, autodeps_), " ");
+    return ns2::join(comp(ci, tokens, &pi, action, autodeps_), " ");
   } else if (action == parser::infos_t::Raw ||
              action == parser::infos_t::Permissive) {
     return raw(tokens);
@@ -1754,7 +1768,7 @@ std::string translate(std::vector<parser::token_t> const &tokens,
                       parser::infos_t::action_t action, parser::infos_t *pi_,
                       autodeps_t *autodeps_) {
   parser::infos_t &pi = *pi_;
-  if (pi.action == parser::infos_t::Raw) {
+  if (action == parser::infos_t::Raw) {
     return raw(tokens);
     if (autodeps_ != NULL) {
       autodeps_->cmd.clear();

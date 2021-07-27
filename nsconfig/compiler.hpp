@@ -56,7 +56,8 @@ struct infos_t {
     NVCC,
     HIPCC,
     HCC,
-    DPCpp
+    DPCpp,
+    Xlc
   } type;
   enum arch_t { Intel, ARMEL, ARMHF, AARCH64, PPC64EL, WASM } arch;
   enum lang_t { Unknown, C, CPP } lang;

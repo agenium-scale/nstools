@@ -59,6 +59,7 @@ static void help(FILE *out) {
   "                    msvc      Microsoft C and C++ compiler\n"
   "                    llvm      The LLVM compiler infrastructure\n"
   "                    armclang  Arm suite of compilers based on LLVM\n"
+  "                    xlc       IBM suite of compilers\n"
   "                    fcc_trad_mode\n"
   "                              Fujitsu compiler in traditional mode\n"
   "                    fcc_clang_mode\n"
@@ -96,6 +97,7 @@ static void help(FILE *out) {
   "                    emcc, em++            Emscripten compilers\n"
   "                    msvc, cl              Microsoft Visual C++\n"
   "                    armclang, armclang++  ARM Compiler\n"
+  "                    xlc, xlc++            IBM Compiler\n"
   "                    icc                   Intel C/C++ Compiler\n"
   "                    dpcpp                 Intel DPC++ Compiler\n"
   "                    nvcc                  Nvidia CUDA compiler\n"
@@ -116,7 +118,7 @@ static void help(FILE *out) {
   "      commands with 'cuda-host-c++'. The latter defaults to GCC on Linux\n"
   "      systems and MSVC on Windows systems. The user can of course choose\n"
   "      a specific version and path of this host compiler via the\n"
-  "      '-comp=cuda-hostc++,... parameters. If nvcc is not chosen as the\n"
+  "      '-comp=cuda-host-c++,... parameters. If nvcc is not chosen as the\n"
   "      default C++ compiler but is used for compilation then its default\n"
   "      C++ host compiler is 'c++'. The latter can also be customized via\n"
   "      the '-comp=c++,...' command line switch.\n"
@@ -178,7 +180,7 @@ int main2(int argc, char **argv) {
           suite != "cuda" && suite != "cuda+gcc" && suite != "cuda+clang" &&
           suite != "cuda+msvc" && suite != "fcc_trad_mode" &&
           suite != "fcc_clang_mode" && suite != "emscripten" &&
-          suite != "oneapi") {
+          suite != "oneapi" && suite != "xlc") {
         NS2_THROW(std::runtime_error,
                   "unknown suite given at command line: " + suite);
       }

@@ -60,6 +60,12 @@ static std::vector<std::string> icc(std::string const &,
                                     parser::infos_t const &,
                                     parser::infos_t::action_t);
 
+static std::vector<std::string> xlc(std::string const &,
+                                    std::vector<parser::token_t> const &,
+                                    compiler::infos_t const &,
+                                    parser::infos_t const &,
+                                    parser::infos_t::action_t);
+
 static std::vector<std::string> msvc(std::vector<parser::token_t> const &,
                                      compiler::infos_t const &,
                                      parser::infos_t const &,
@@ -478,6 +484,9 @@ comp(compiler::infos_t const &ci, std::vector<parser::token_t> const &tokens,
   case compiler::infos_t::FCC_clang_mode:
     ret = fcc(ci.path, tokens, ci, pi, action);
     break;
+  case compiler::infos_t::Xlc:
+    ret = xlc(ci.path, tokens, ci, pi, action);
+    break;
   case compiler::infos_t::Emscripten:
     ret = emscripten(ci.path, tokens, ci, pi, action);
     break;
@@ -542,6 +551,7 @@ static std::string get_rpath_argument(std::string const &directory,
   case compiler::infos_t::ARMClang:
   case compiler::infos_t::FCC_trad_mode:
   case compiler::infos_t::FCC_clang_mode:
+  case compiler::infos_t::Xlc:
   case compiler::infos_t::ICC:
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::NVCC:
@@ -767,7 +777,6 @@ gcc_clang(std::string const &compiler,
   }
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
-  args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
 
   if (ci.type == compiler::infos_t::GCC) {
@@ -910,7 +919,6 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-mfp16"] = "";
   args["-fopenmp"] = "/openmp";
   args["-shared"] = "/LD";
-  args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
@@ -1146,7 +1154,6 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-mfp16"] = "-mf16c";
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
-  args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
@@ -1448,7 +1455,6 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-mfp16"] = "";
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
-  args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "-fdiagnostics-color=always";
   /* https://stackoverflow.com/questions/43864881
       /fno-omit-frame-pointer-equivalent-compiler-option-for-clang */
@@ -1535,7 +1541,6 @@ emscripten(std::string const &compiler,
   args["-mfp16"] = "";
   args["-fopenmp"] = "";
   args["-shared"] = "-shared";
-  args["--coverage"] = "";
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
@@ -1573,6 +1578,97 @@ emscripten(std::string const &compiler,
 
   return uniq(ret);
 }
+
+// ----------------------------------------------------------------------------
+
+static std::vector<std::string> xlc(std::string const &compiler,
+                                    std::vector<parser::token_t> const &tokens,
+                                    compiler::infos_t const &ci,
+                                    parser::infos_t const &pi,
+                                    parser::infos_t::action_t action) {
+  std::vector<std::string> ret;
+  ret.push_back(compiler);
+  std::map<std::string, std::string> args;
+
+  args["-std=c89"] = "-qlanglvl=stdc89";
+  args["-std=c99"] = "-qlanglvl=stdc99";
+  args["-std=c11"] = "-qlanglvl=stdc11";
+  args["-std=c++98"] = "";
+  args["-std=c++03"] = "";
+  args["-std=c++11"] = "-qlanglvl=extended0x";
+  args["-std=c++14"] = "-qlanglvl=extended1y";
+  args["-std=c++17"] = "-qlanglvl=extended1y";
+  args["-std=c++20"] = "-qlanglvl=extended1y";
+  args["-O0"] = "";
+  args["-O1"] = "-qoptimize=0";
+  args["-O2"] = "-qoptimize=2";
+  args["-O3"] = "-qoptimize=4";
+  args["-g"] = "-g";
+  args["-S"] = "-S";
+  args["-c"] = "-c";
+  args["-o"] = "-o";
+  args["-x"] = "-x";
+  args["-Wall"] = "";
+  args["-fPIC"] = "-qpic";
+  args["-static-libstdc++"] = "";
+  args["-msse"] = "";
+  args["-msse2"] = "";
+  args["-msse3"] = "";
+  args["-mssse3"] = "";
+  args["-msse41"] = "";
+  args["-msse42"] = "";
+  args["-mavx"] = "";
+  args["-mavx2"] = "";
+  args["-mavx512_knl"] = "";
+  args["-mavx512_skylake"] = "";
+  args["-mneon64"] = "";
+  args["-mneon128"] = "";
+  args["-maarch64"] = "";
+  args["-msve"] = "";
+  args["-msve128"] = "";
+  args["-msve256"] = "";
+  args["-msve512"] = "";
+  args["-msve1024"] = "";
+  args["-msve2048"] = "";
+  args["-mfma"] = "";
+  args["-mfp16"] = "";
+  args["-fopenmp"] = "-qsmp=omp";
+  args["-shared"] = "-qmkshrobj";
+  args["-fdiagnostics-color=always"] = "";
+  args["-mvmx"] = "";
+  args["-mvsx"] = "";
+  args["-mwasm_simd128"] = "";
+  args["-msm_35"] = "";
+  args["-msm_50"] = "";
+  args["-msm_53"] = "";
+  args["-msm_60"] = "";
+  args["-msm_61"] = "";
+  args["-msm_62"] = "";
+  args["-msm_70"] = "";
+  args["-msm_72"] = "";
+  args["-msm_75"] = "";
+  args["-fno-omit-frame-pointer"] = "";
+  args["-vec-report"] = "";
+
+  for (size_t i = 1; i < tokens.size(); i++) {
+    std::string const &arg = tokens[i].text;
+    // The effect of --version on the command line is that the compiler
+    // performs no action but displaying some infos, so no need to pass
+    // other flags that will be ignored
+    if (arg == "--version") {
+      ret.clear();
+      ret.push_back(compiler);
+      ret.push_back("-qversion");
+      return ret;
+    }
+    std::vector<std::string> buf =
+        translate_single_arg(compiler, args, ci, tokens[i], pi, action);
+    ret.insert(ret.end(), buf.begin(), buf.end());
+  }
+
+  return uniq(ret);
+}
+
 
 // ----------------------------------------------------------------------------
 
@@ -1642,7 +1738,6 @@ static std::vector<std::string> fcc(std::string const &compiler,
   args["-mfp16"] = "";
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";
-  args["--coverage"] = "--coverage";
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
@@ -1706,7 +1801,8 @@ bool command_is_compiler(std::string const &cmd) {
       cmd == "nvcc" || cmd == "hipcc" || cmd == "hcc" || cmd == "dpcpp" ||
       cmd == "cuda-host-c++" || cmd == "fcc_trad_mode" ||
       cmd == "FCC_trad_mode" || cmd == "fcc_clang_mode" ||
-      cmd == "FCC_clang_mode" || cmd == "emcc" || cmd == "em++") {
+      cmd == "FCC_clang_mode" || cmd == "emcc" || cmd == "em++" ||
+      cmd == "xlc" || cmd == "xlc++") {
     return true;
   }
   return false;

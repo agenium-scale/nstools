@@ -36,8 +36,28 @@ namespace compiler {
 
 std::ostream &operator<<(std::ostream &os, const infos_t &ci) {
   os << "\"" << ci.path << "\" version " << ns2::to_string(ci.version)
-     << " for " << (ci.arch == compiler::infos_t::Intel ? "Intel" : "ARM")
-     << " " << ns2::to_string(ci.nbits) << " bits";
+     << " for ";
+  switch(ci.arch) {
+  case compiler::infos_t::Intel:
+    os << "Intel";
+    break;
+  case compiler::infos_t::ARMEL:
+    os << "ARM EABI";
+    break;
+  case compiler::infos_t::ARMHF:
+    os << "ARM hard-float";
+    break;
+  case compiler::infos_t::AARCH64:
+    os << "ARM";
+    break;
+  case compiler::infos_t::PPC64EL:
+    os << "PowerPC little-endian";
+    break;
+  case compiler::infos_t::WASM:
+    os << "Webassembly";
+    break;
+  }
+  os << " " << ns2::to_string(ci.nbits) << " bits";
   return os;
 }
 
@@ -52,6 +72,8 @@ std::string get_corresponding_cpp_comp(std::string const &suite) {
     return "clang++";
   } else if (suite == "armclang") {
     return "armclang++";
+  } else if (suite == "xlc") {
+    return "xlc++";
   } else if (suite == "fcc_trad_mode") {
     return "FCC_trad_mode";
   } else if (suite == "fcc_clang_mode") {
@@ -83,6 +105,8 @@ std::string get_corresponding_c_comp(std::string const &suite) {
     return "clang";
   } else if (suite == "armclang") {
     return "armclang";
+  } else if (suite == "xlc") {
+    return "xlc";
   } else if (suite == "fcc_trad_mode") {
     return "fcc_trad_mode";
   } else if (suite == "fcc_clang_mode") {
@@ -99,7 +123,8 @@ std::string get_corresponding_c_comp(std::string const &suite) {
 // ----------------------------------------------------------------------------
 
 static int compute_version(std::vector<std::string> const &str,
-                           int multiplier0, int multiplier1, int multiplier2) {
+                           int multiplier0, int multiplier1 = 0,
+                           int multiplier2 = 0, int multiplier3 = 0) {
   if (str.size() == 0) {
     return 0;
   }
@@ -112,6 +137,9 @@ static int compute_version(std::vector<std::string> const &str,
   }
   if (str.size() > 2 && multiplier2 > 0) {
     ret += ::atoi(str[2].c_str()) * multiplier2;
+  }
+  if (str.size() > 3 && multiplier3 > 0) {
+    ret += ::atoi(str[3].c_str()) * multiplier3;
   }
   return ret;
 }
@@ -134,15 +162,18 @@ void get_version_from_string(compiler::infos_t *ci_,
     break;
   case compiler::infos_t::MSVC:
   case compiler::infos_t::ICC:
-    ci.version = compute_version(str, 100, 1, 0);
+    ci.version = compute_version(str, 100, 1);
+    break;
+  case compiler::infos_t::Xlc:
+    ci.version = compute_version(str, 100, 1);
     break;
   case compiler::infos_t::HIPCC:
   case compiler::infos_t::HCC:
   case compiler::infos_t::Emscripten:
-    ci.version = compute_version(str, 10000, 100, 0);
+    ci.version = compute_version(str, 10000, 100);
     break;
   case compiler::infos_t::DPCpp:
-    ci.version = compute_version(str, 1, 0, 0);
+    ci.version = compute_version(str, 1);
     break;
   case compiler::infos_t::None:
     NS2_THROW(std::runtime_error, "Invalid compiler");
@@ -222,6 +253,11 @@ int get_path_type_and_lang(infos_t *ci, std::string const &str) {
     } else {
       ci->path = "FCC";
     }
+    return 0;
+  } else if (str == "xlc" || str == "xlc++") {
+    ci->type = compiler::infos_t::Xlc;
+    ci->lang = (str == "xlc" ? compiler::infos_t::C : compiler::infos_t::CPP);
+    ci->path = str;
     return 0;
   } else if (str == "em++" || str == "emcc") {
     ci->type = compiler::infos_t::Emscripten;
@@ -505,6 +541,10 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     version_formula = "(long)(__FCC_major__ * 100 + __FCC_minor__ * 10 + "
                       "__FCC_patchlevel__)";
     break;
+  case compiler::infos_t::Xlc:
+    version_formula = "(long)(__ibmxl_version__ * 100 + "
+                      "__ibmxl_release__)";
+    break;
   case compiler::infos_t::Emscripten:
     version_formula = "(long)(__EMSCRIPTEN_major__ * 10000 + "
                       "__EMSCRIPTEN_minor__ * 100 + __EMSCRIPTEN_tiny__)";
@@ -568,6 +608,7 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
     ci.nbits = host_ci.nbits;
     break;
   }
+  case infos_t::Xlc:
   case infos_t::Clang:
   case infos_t::ARMClang:
   case infos_t::FCC_clang_mode:
@@ -604,7 +645,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "printf(\"wasm32\");\n"
         "#elif defined(__wasm64) || defined(__wasm64__)\n"
         "printf(\"wasm64\");\n"
-        "#elif (defined(__PPC64__) || defined(_ARCH_PPC64)) && "
+        "#elif (defined(__PPC64__) || defined(_ARCH_PPC64) || "
+        "defined(__ppc64__) || defined(__powerpc64__)) && "
         "(defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__))\n"
         "printf(\"ppc64el\");\n"
         "#endif", verbosity);
@@ -673,6 +715,8 @@ std::string get_type_str(compiler::infos_t::type_t const compiler_type) {
     return "clang";
   case compiler::infos_t::ARMClang:
     return "clang";
+  case compiler::infos_t::Xlc:
+    return "xlc";
   case compiler::infos_t::FCC_trad_mode:
     return "fcc_trad_mode";
   case compiler::infos_t::FCC_clang_mode:

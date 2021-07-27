@@ -88,134 +88,92 @@ will help you to use them.
 
 # Nsconfig
 
-Nsconfig is the replacement of CMake at Agenium Scale. We used to use CMake but
-it did fit our needs. After having considered other build systems our choice
-was made to write yet another one that suits our needs. This build system may
-or may not be the right one for you. It was not written to replace CMake or the
-autotools worldwide. It was written for our needs only. As no dedicated pages
-for the documentation is ready for nstools and for nsconfig, what follows is
-the documentation of nsconfig.
+```
+usage: nsconfig [OPTIONS]... DIRECTORY
+Configure project for compilation.
 
-## Overview
+  -v              verbose mode, useful for debugging
+  -nodev          Build system will never call nsconfig
+  -DVAR=VALUE     Set value of variable VAR to VALUE
+  -list-vars      List project specific variable
+  -GBUILD_SYSTEM  Produce files for build system BUILD_SYSTEM
+                  Supported BUILD_SYSTEM:
+                    make       POSIX Makefile
+                    gnumake    GNU Makefile
+                    nmake      Microsot Visual Studio NMake Makefile
+                    ninja      Ninja build file (this is the default)
+                    list-vars  List project specific variables
+  -oOUTPUT        Output to OUTPUT instead of default
+  -suite=SUITE    Use compilers from SUITE as default ones
+                  Supported SUITE:
+                    gcc       The GNU compiler collection
+                    msvc      Microsoft C and C++ compiler
+                    llvm      The LLVM compiler infrastructure
+                    armclang  Arm suite of compilers based on LLVM
+                    xlc       IBM suite of compilers
+                    fcc_trad_mode
+                              Fujitsu compiler in traditional mode
+                    fcc_clang_mode
+                              Fujitsu compiler in clang mode
+                    emscripten
+                              Emscripten suite for compiling into JS
+                    icc       Intel C amd C++ compiler
+                    rocm      Radeon Open Compute compilers
+                    oneapi    Intel oneAPI compilers
+                    cuda, cuda+gcc, cuda+clang, cuda+msvc
+                              Nvidia CUDA C++ compiler
+  -comp=COMMAND,COMPILER[,PATH[,VERSION[,ARCHI]]]
+                  Use COMPILER when COMMAND is invoked for compilation
+                  If VERSION and/or ARCHI are not given, nsconfig will
+                  try to determine those. This is useful for cross
+                  compiling and/or setting the CUDA host compiler.
+                  COMMAND must be in { cc, c++, gcc, g++, cl, icc, nvcc,
+                  hipcc, hcc, clang, clang++, armclang, armclang++,
+                  cuda-host-c++, emcc, em++ } ;
+                  VERSION is compiler dependant. Note that VERSION
+                  can be set to only major number(s) in which case
+                  nsconfig fill missing numbers with zeros.
+                  Supported ARCHI:
+                    x86      Intel 32-bits ISA
+                    x86_64   Intel/AMD 64-bits ISA
+                    armel    ARMv5 and ARMv6 32-bits ISA
+                    armhf    ARMv7 32-bits ISA
+                    aarch64  ARM 64-bits ISA
+                    ppc64el  PowerPC 64-bits little entian
+                    wasm32   WebAssembly with 32-bits memory indexing
+                    wasm64   WebAssembly with 64-bits memory indexing
+                  Supported COMPILER:
+                    gcc, g++              GNU Compiler Collection
+                    clang, clang++        LLVM Compiler Infrastructure
+                    emcc, em++            Emscripten compilers
+                    msvc, cl              Microsoft Visual C++
+                    armclang, armclang++  ARM Compiler
+                    xlc, xlc++            IBM Compiler
+                    icc                   Intel C/C++ Compiler
+                    dpcpp                 Intel DPC++ Compiler
+                    nvcc                  Nvidia CUDA compiler
+                    hipcc                 ROCm HIP compiler
+                    fcc_trad_mode, FCC_trad_mode
+                                          Fujitsu C and C++ traditionnal
+                                          compiler
+                    fcc_clang_mode, FCC_clang_mode
+                                          Fujitsu C and C++ traditionnal
+                                          compiler
+  -prefix=PREFIX  Set path for installation to PREFIX
+  -h, --help      Print the current help
 
-Nsconfig is a replacement for CMake and other so called meta build systems.
-You have to think of nsconfig as a Makefile translator rather than a Makefile
-generator.
-
-For now it supports output to POSIX Makefile, MSVC NMake Makefiles,
-GNU Makefiles and Ninja build file. You write a "build.nsconfig" file and then
-nsconfig will parse it and generate the requested make/nmake/ninja file.
-
-nsconfig is designed to be portable accross Linux and Windows and to support
-several compilers: GCC/Clang, MSVC and ICC.
-
-    set exe    = @exe_ext
-    set o      = @obj_ext
-    set root   = @source_dir
-    set cflags = -Wall -O2
-
-    # Compile each .cpp file into an object file
-    build_files foo foreach glob:${root}/*.cpp as %r$o
-            c++ $cflags @item -c -o @out
- 
-    # Link all object files together
-    build_file foo$exe deps $foo.files
-            c++ @in -o @out
-
-Once your build.nsconfig is written simply call nsconfig as you would CMake.
-
-    $ mkdir build
-    $ cd build
-    $ nsconfig ..
-    $ ninja
-
-By default three rules will be generated:
-
-- `all`: will by default generates all non-phony targets.
-- `clean`: will clean all built files by non-phony targets.
-- `update`: will re-execute nsconfig with the arguments that were used to
-  generate the Makefile/Ninja build file.
-
-**WARNING:** when building a dynamic and a static library from the same source
-code use different output and intermediate filenames. Indeed on Windows a .lib
-file is written along a .dll file. Therefore "libfoo.lib" will come with
-"libfoo.dll" but is not a static library. Therefore we advise to call the
-corresponding static library "libstatic\_foo.lib". We give below a snippet
-for building both a dynmic and static library.
-
-    # Compile each .cpp file into an object file
-    build_files foo foreach glob:${root}/*.cpp as %r$o
-            c++ $cflags @item -c -o @out
-
-    # Link all object files together into a dll
-    build_file libfoo$so deps $foo.files
-            c++ -shared @in -o @out
-
-    # Compile each .cpp file into an object file
-    build_files static_foo foreach glob:${root}/*.cpp as static_%r$o
-            c++ $cflags @item -c -o @out
-
-    # Link all object files together into a static library
-    build_file libstatic_foo$a deps $static_foo.files
-            ar rcs @out @in
-
-## Nsconfig command line switches
-
-- `-Ggenerator`: Choose which generator to use. Supported generators:
-  + `make`: POSIX Makefile
-  + `gnumake`: GNU Makefile
-  + `nmake`: Microsot Visual Stusdio NMake Makefile
-  + `ninja`: Ninja build file (this is the default)
-  + `list-vars`: List project specific variables
-
-- `-Dvar=value`: Affect value `value` to variable named `var` for the
-  build.nsconfig files. It can be accessed with `%var%`.
-
-- `-list-vars`: List variables specific to a project. The list of variables
-  simply consists of those that are in `ifnot_set`.
-
-- `-ooutput`: Instead of writing its output to the default file (`build.ninja`
-  for Ninja, Makefile for the other generators) write the output to the file
-  named `output`.
-
-- `-comp=type`: Tell nsconfig that the default C and C++ compilers are of type
-  `type`. This is a shortcut for `-ccomp=` and `cppcomp=`. The type must be one
-  of the following:
-  + gcc: GNU Compiler Collection
-  + clang: LLVM Compiler Infrastructure
-  + msvc: Microsoft Visual C++
-  + armclang: ARM Compiler
-  + icc: Intel C/C++ Compiler
-
-- `-ccomp=type,path`: Tell nsconfig that the default C compiler is of type
-  `type` can be found at `path` (which can be a relative or an absolute path).
-  All invocations of `cc` in any command that has to be translated will refer
-  to the specified compiler. The type must be one of the following:
-  + gcc: GNU Compiler Collection
-  + clang: LLVM Compiler Infrastructure
-  + msvc: Microsoft Visual C++
-  + armclang: ARM Compiler
-  + icc: Intel C/C++ Compiler
-
-- `-cppcomp=type,path`: Tell nsconfig that the default C++ compiler is of type
-  `type` can be found at `path` (which can be a relative or an absolute path).
-  All invocations of `c++` in any command that has to be translated will refer
-  to the specified compiler. The type must be one of the following:
-  + gcc: GNU Compiler Collection
-  + clang: LLVM Compiler Infrastructure
-  + msvc: Microsoft Visual C++
-  + armclang: ARM Compiler
-  + icc: Intel C/C++ Compiler
-
-- `-nodev`: Deactivate the fact that all rules depends on the Makefile or
-  build.ninja file itself to allow automatic regeneration. This is useful if
-  you intend to provide the Makefile or build.ninja to a third party.
-
-- `-prefix=prefix`: Tell nsconfig that prefix for installation of the project
-  is `prefix`. If none is given default is `/opt/local` on Linux and
-  `C:\Program Files` on Windows.
-
-- `--help`: Print a quick help on stdout.
+NOTE: Nvidia CUDA compiler (nvcc) needs a host compiler. Usually on
+      Linux systems it is GCC while on Windows systems it is MSVC.
+      If nvcc is chosen as the default C++ compiler via the -suite
+      switch, then its host compiler can be invoked in compilation
+      commands with 'cuda-host-c++'. The latter defaults to GCC on Linux
+      systems and MSVC on Windows systems. The user can of course choose
+      a specific version and path of this host compiler via the
+      '-comp=cuda-host-c++,... parameters. If nvcc is not chosen as the
+      default C++ compiler but is used for compilation then its default
+      C++ host compiler is 'c++'. The latter can also be customized via
+      the '-comp=c++,...' command line switch.
+```
 
 ## build.nsconfig file reference
 

@@ -109,22 +109,6 @@ static const char *constants[] = {
 
 // ----------------------------------------------------------------------------
 
-static bool sregex(std::string const &str, std::string const &regex) {
-  if (str.size() != regex.size()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < str.size(); i++) {
-    if (regex[i] != '?' && regex[i] != str[i]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-// ----------------------------------------------------------------------------
-
 void add_variable(variables_t *variables, std::string const &key,
                   std::string const &value, bool used, bool force) {
   if (force) {
@@ -649,11 +633,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
 
     // perform variable substitution if we are translating
     cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-    if (pi.translate) {
-      line = substitute(trim_raw_line, cursor, &pi);
-    } else {
-      line  = trim_raw_line;
-    }
+    line = substitute(trim_raw_line, cursor, &pi);
     cursor.before_after_expand = cursor_t::AfterVariableExpansion;
     cursor.source = line;
 
@@ -671,11 +651,7 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
 
       // perform variable substitution if we are translating
       cursor.before_after_expand = cursor_t::DuringVariableExpansion;
-      if (pi.translate) {
-        line = substitute(ns2::strip(line), cursor, &pi);
-      } else {
-        line = ns2::strip(line);
-      }
+      line = substitute(ns2::strip(line), cursor, &pi);
       cursor.before_after_expand = cursor_t::AfterVariableExpansion;
       cursor.source = line;
       if (line.size() == 0) {
@@ -688,41 +664,46 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
     }
 
     // analyze line prefix [...] and ignore (or not) line according to the OS
-    // we run on
+    // we run on:
+    //   - L = linux
+    //   - W = windows
+    //   - P = permissive = translate what it can
+    //   - T = translate and error when cannot
+    //   - R = do not translate, copy as-is
     std::string const &s = tokens[0].text;
-    bool modifier_is_present = sregex(s, "[?]") || sregex(s, "[?:?]");
-    int os = modifier_is_present ? s[1] : '*';
-    if (os != 'L' && os != 'W' && os != '*') {
-      tokens[0].cursor.col++;
-      // L = linux
-      // W = windows
-      // * = both systems
-      die("expected 'L', 'W' or '*'", tokens[0].cursor);
-    }
-    if (pi.fill_action(sregex(s, "[?:?]") ? s[3] : 'T') == false) {
-      tokens[0].cursor.col += 3;
-      // P = permissive = translate what it can
-      // T = translate and error when cannot
-      // R = do not translate, copy as-is
-      die("expected 'P', 'T' or 'R'", tokens[0].cursor);
-    }
+    char os = '\0';
+    if (s[0] == '[' && s[s.size() - 1] == ']') {
+      if ((s.size() == 4) && (s[1] == 'L' || s[1] == 'W') &&
+          (s[2] == 'P' || s[2] == 'T' || s[2] == 'R')) {
+        os = s[1];
+        pi.fill_action(s[2]);
+      } else if ((s.size() == 4) && (s[2] == 'L' || s[2] == 'W') &&
+                 (s[1] == 'P' || s[1] == 'T' || s[1] == 'R')) {
+        os = s[2];
+        pi.fill_action(s[1]);
+      } else if ((s.size() == 3) && (s[1] == 'L' || s[1] == 'W')) {
+        os = s[1];
+      } else if ((s.size() == 3) &&
+                 (s[1] == 'P' || s[1] == 'T' || s[1] == 'R')) {
+        pi.fill_action(s[1]);
+      } else if (s.size() == 2) {
+        continue;
+      }
 #ifdef NS2_IS_MSVC
-    if (os == 'L') {
-      continue;
-    }
+      if (os == 'L') {
+        continue;
+      }
 #else
-    if (os == 'W') {
-      continue;
-    }
+      if (os == 'W') {
+        continue;
+      }
 #endif
+      // remove the first token if it is one of the "[?]"'s or "[?:?]"'s
+      tokens.erase(tokens.begin());
+    }
 
     // if the first character is a tab we have a command for a target
     bool cmd = (raw_line[0] == '\t');
-
-    // remove the first token if it is one of the "[?]"'s or "[?:?]"'s
-    if (modifier_is_present) {
-      tokens.erase(tokens.begin());
-    }
 
     // just a shortcut
     std::string const &head = tokens[0].text;
@@ -817,51 +798,6 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
     // in the build.config file and I don't know whether it is a good thing
     // or not.
     if (pi.getting_vars_list) {
-      continue;
-    }
-
-    // end_translate: must be here to avoid the parsing of any other command
-    if (!cmd && head == "end_translate") {
-      if (!pi.begin_translate) {
-        die("unexpected 'end_translate', no corresponding "
-            "'begin_translate_if'",
-            tokens[0].cursor);
-      }
-      pi.translate = true;
-      pi.begin_translate = false;
-      continue;
-    }
-
-    // if we are not in a translation zone then continue
-    if (pi.translate == false) {
-      continue;
-    }
-
-    // begin_translate_if
-    if (!cmd && head == "begin_translate_if") {
-      if (tokens.size() == 1) {
-        die("expecting expression after", tokens[0].cursor);
-      }
-      if (tokens.size() == 2) {
-        die("expecting comparison operator after", tokens[1].cursor);
-      }
-      if (tokens[2].text != "==" && tokens[2].text != "!=") {
-        die("comparison operator must be '==' or '!='", tokens[2].cursor);
-      }
-      if (tokens.size() == 3) {
-        die("expecting expression after", tokens[2].cursor);
-      }
-      if (tokens.size() > 4) {
-        die("unexpected token", tokens[4].cursor);
-      }
-      if ((tokens[2].text == "==" && tokens[1].text == tokens[3].text) ||
-          (tokens[2].text == "!=" && tokens[1].text != tokens[3].text)) {
-        pi.translate = true;
-      } else {
-        pi.translate = false;
-      }
-      pi.translate_cursor = tokens[0].cursor;
-      pi.begin_translate = true;
       continue;
     }
 
@@ -1447,13 +1383,6 @@ rules_t parse(ns2::ifile_t &in, infos_t *pi_) {
   // Do the real parsing
   pi.getting_vars_list = false;
   parse_rec(&ret, in, &pi);
-
-  // Check for non closed begin_translate_if
-  if (pi.translate == false) {
-    NS2_THROW(std::runtime_error,
-              "unfinished begin_translate_if on line " +
-                  ns2::to_string(pi.translate_cursor.lineno));
-  }
 
   // Check for unused variables
   std::vector<std::string> used_vars;

@@ -177,21 +177,20 @@ NOTE: Nvidia CUDA compiler (nvcc) needs a host compiler. Usually on
 
 ## build.nsconfig file reference
 
-Each line can be prefixed by `[S:TR]` where `S` indicates the system on
-which the line will be parsed and `TR` indicates what kind of sheel command
-translation is requested.
+Each line can be prefixed by `[xxx]` where `xxx` can indicates the system on
+which the line will be parsed or indicates what kind of shell command
+translation will be done. More precisely if `xxx` is
 
-`S` can have the following values:
+- `W` then the line is only available on Windows systems.
+- `L` then the line is only available on Linux systems.
+- `T` then translate the shell commands and issue an error when cannot.
+- `P` then translate the shell commands when possible otherwise, copy as-is.
+- `R` then copy as-is shell commands.
 
-- `W`: line only available on Windows.
-- `L`: line only available on Linux
-- `*`: line available on all systems.
-
-`TR` can have the following values:
-
-`T`: translate shell commands and stop when cannot.
-`P`: translate shell commands when possible otherwise, copy as-is.
-`R`: copy as-is shell commands.
+Note that `xxx` can contain both `W` or `L` with `T`, `P` or `R`. One can
+put a variable and if it expanded as non empty string then the rest of the
+line will be translated, if it is expanded as the empty string then the line
+won't be translated.
 
 ### `disable_all`
 

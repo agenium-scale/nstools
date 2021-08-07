@@ -754,13 +754,13 @@ static void parse_rec(rules_t *rules_, ns2::ifile_t &in, infos_t *pi_) {
                    value == "@exe_ext" || value == "@asm_ext") {
           compiler::infos_t ci = compiler::get("cc", &pi);
           value = get_ext(ci.type, value);
-        } else if (value == "@ccomp_suite") {
+        } else if (value == "@ccomp_type") {
           compiler::infos_t ci = compiler::get("cc", &pi);
           value = compiler::get_type_and_lang_str(ci.type, ci.lang);
         } else if (value == "@ccomp_path") {
           compiler::infos_t ci = compiler::get("cc", &pi);
           value = ci.path;
-        } else if (value == "@cppcomp_suite") {
+        } else if (value == "@cppcomp_type") {
           compiler::infos_t ci = compiler::get("c++", &pi);
           value = compiler::get_type_and_lang_str(ci.type, ci.lang);
         } else if (value == "@cppcomp_path") {

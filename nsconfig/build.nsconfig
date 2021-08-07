@@ -37,6 +37,11 @@ set ccomp_path    = @ccomp_path
 set cppcomp_suite = @cppcomp_suite
 set cppcomp_path  = @cppcomp_path
 
+echo ccomp_suite = $ccomp_suite
+echo ccomp_path = $ccomp_path
+echo cppcomp_suite = $cppcomp_suite
+echo cppcomp_path = $cppcomp_path
+
 ##package_name foo
 #
 #set flags_for_sse = SSE

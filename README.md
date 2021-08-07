@@ -234,6 +234,12 @@ Set value of variable `var` to `value`. `Value` can be one of the following.
 * `@exe_ext`: extension of an executable, usually "" on Linux and ".exe" on
               Windows.
 * `@prefix`: Installation prefix as given by the `-prefix` command-line switch.
+* `@ccomp_type`: Type of the C compiler, the list is given in the help of
+  `nsconfig.
+* `@ccomp_path`: Path of the C compiler.
+* `@cppcomp_type`: Type of the C++ compiler, the list is given in the help of
+  `nsconfig.
+* `@cppcomp_path`: Path of the C++ compiler.
 
 When a lambda is set the '*' contained in `value` will be replaced by anything
 non-empty when trying to find the variable name. Here is an example:

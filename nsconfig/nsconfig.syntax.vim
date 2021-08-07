@@ -82,9 +82,9 @@ sy keyword nsconfig_constants
   \ @out
   \ @make_command
   \ @prefix
-  \ @ccomp_suite
+  \ @ccomp_type
   \ @ccomp_path
-  \ @cppcomp_suite
+  \ @cppcomp_type
   \ @cppcomp_path
 
 " Paragraphs

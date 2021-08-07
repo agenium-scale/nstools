@@ -241,7 +241,7 @@ Set value of variable `var` to `value`. `Value` can be one of the following.
   `nsconfig.
 * `@cppcomp_path`: Path of the C++ compiler.
 
-When a lambda is set the '*' contained in `value` will be replaced by anything
+When a lambda is set, the '*' contained in `var` will be replaced by anything
 non-empty when trying to find the variable name. Here is an example:
 
 ```

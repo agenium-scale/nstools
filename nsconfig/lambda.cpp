@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 #include "lambda.hpp"
-#include <iostream>
+#include <ns2/string.hpp>
 
 namespace lambda {
 
@@ -55,12 +55,14 @@ static bool match(lambda_t const &l, std::string const &str) {
 
 // ----------------------------------------------------------------------------
 
-//static void print(lambda_t const l) {
+//static std::string tostr(lambda_t const l) {
+//  std::string ret;
 //  for (size_t i = 0; i < l.pieces.size(); i++) {
-//    std::cout << l.pieces[i] << ' ';
+//    ret += l.pieces[i] + " ";
 //  }
-//  std::cout << "| " << l.value << " | " << l.first_at_begin << " | "
-//            << l.last_at_end << std::endl;
+//  ret += "| " + l.value + " | " + (l.first_at_begin ? "true" : "false") +
+//         " | " + (l.last_at_end ? "true" : "false");
+//  return ret;
 //}
 
 // ----------------------------------------------------------------------------
@@ -87,16 +89,7 @@ std::pair<bool, std::string> find(std::string const &str,
 lambda_t create(std::string const &str, std::string const &value) {
   lambda_t ret;
   std::string buf;
-  for (size_t i = 0; i < str.size(); i++) {
-    if (str[i] == '*') {
-      if (buf.size() > 0) {
-        ret.pieces.push_back(buf);
-      }
-      buf.clear();
-      continue;
-    }
-    buf.push_back(str[i]);
-  }
+  ret.pieces = ns2::split(str, "*");
   ret.first_at_begin = (str[0] != '*');
   ret.last_at_end = (str[str.size() - 1] != '*');
   ret.value = value;

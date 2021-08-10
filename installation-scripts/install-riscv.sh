@@ -80,6 +80,7 @@ mysudo chown -R root:root ${PREFIX}
 (cd "${WORK_DIR}/${PK}" \
  && mkdir build \
  && cd build \
+ && PATH="${PATH}:${PREFIX}/bin" \
  && ../configure --prefix=${PREFIX} --host=riscv64-unknown-elf \
  && make ${J} \
  && mysudo make install)

@@ -21,6 +21,7 @@
 // SOFTWARE.
 
 #include "lambda.hpp"
+#include <iostream>
 
 namespace lambda {
 
@@ -51,6 +52,16 @@ static bool match(lambda_t const &l, std::string const &str) {
   }
   return true;
 }
+
+// ----------------------------------------------------------------------------
+
+//static void print(lambda_t const l) {
+//  for (size_t i = 0; i < l.pieces.size(); i++) {
+//    std::cout << l.pieces[i] << ' ';
+//  }
+//  std::cout << "| " << l.value << " | " << l.first_at_begin << " | "
+//            << l.last_at_end << std::endl;
+//}
 
 // ----------------------------------------------------------------------------
 

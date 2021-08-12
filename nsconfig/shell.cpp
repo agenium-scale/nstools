@@ -735,6 +735,7 @@ gcc_clang(std::string const &compiler,
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
   args["-mvmx"] = "-mcpu=powerpc64le -maltivec";
   args["-mvsx"] = "-mcpu=powerpc64le -mvsx";
+  args["-mrvv"] = "";
   if (ci.type == compiler::infos_t::GCC) {
     args["-msm_35"] = "";
     args["-msm_50"] = "";
@@ -922,6 +923,7 @@ msvc(std::vector<parser::token_t> const &tokens, compiler::infos_t const &ci,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
@@ -1157,6 +1159,7 @@ static std::vector<std::string> icc(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
@@ -1441,6 +1444,7 @@ hipcc_hcc_dpcpp(std::string const &compiler,
   args["-msve2048"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "";
   args["-msm_35"] = "--cuda-gpu-arch=sm_35";
   args["-msm_50"] = "--cuda-gpu-arch=sm_50";
@@ -1544,6 +1548,7 @@ emscripten(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "-msimd128";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
@@ -1637,6 +1642,7 @@ static std::vector<std::string> xlc(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";
@@ -1741,6 +1747,7 @@ static std::vector<std::string> fcc(std::string const &compiler,
   args["-fdiagnostics-color=always"] = "";
   args["-mvmx"] = "";
   args["-mvsx"] = "";
+  args["-mrvv"] = "";
   args["-mwasm_simd128"] = "";
   args["-msm_35"] = "";
   args["-msm_50"] = "";

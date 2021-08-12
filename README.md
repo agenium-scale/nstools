@@ -129,7 +129,7 @@ Configure project for compilation.
                   compiling and/or setting the CUDA host compiler.
                   COMMAND must be in { cc, c++, gcc, g++, cl, icc, nvcc,
                   hipcc, hcc, clang, clang++, armclang, armclang++,
-                  cuda-host-c++, emcc, em++ } ;
+                  cuda-host-c++, emcc, em++, xlc, xlc++, dpcpp } ;
                   VERSION is compiler dependant. Note that VERSION
                   can be set to only major number(s) in which case
                   nsconfig fill missing numbers with zeros.
@@ -142,6 +142,8 @@ Configure project for compilation.
                     ppc64el  PowerPC 64-bits little entian
                     wasm32   WebAssembly with 32-bits memory indexing
                     wasm64   WebAssembly with 64-bits memory indexing
+                    riscv32  RISC-V 32-bits
+                    riscv64  RISC-V 64-bits
                   Supported COMPILER:
                     gcc, g++              GNU Compiler Collection
                     clang, clang++        LLVM Compiler Infrastructure
@@ -234,10 +236,10 @@ Set value of variable `var` to `value`. `Value` can be one of the following.
 * `@exe_ext`: extension of an executable, usually "" on Linux and ".exe" on
               Windows.
 * `@prefix`: Installation prefix as given by the `-prefix` command-line switch.
-* `@ccomp_type`: Type of the C compiler, the list is given in the help of
+* `@ccomp_name`: Type of the C compiler, the list is given in the help of
   `nsconfig.
 * `@ccomp_path`: Path of the C compiler.
-* `@cppcomp_type`: Type of the C++ compiler, the list is given in the help of
+* `@cppcomp_name`: Type of the C++ compiler, the list is given in the help of
   `nsconfig.
 * `@cppcomp_path`: Path of the C++ compiler.
 
@@ -549,6 +551,7 @@ compiler:
 - `-mvmx`: enable PowerPC VMX extensions.
 - `-mvsx`: enable PowerPC VSX extensions.
 - `-msve`: enable SVE extensions.
+- `-mrvv`: enable RISC-V extension "V".
 - `-msve128`: enable SVE extensions for fixed sized vectors of 128 bits.
 - `-msve256`: enable SVE extensions for fixed sized vectors of 256 bits.
 - `-msve512`: enable SVE extensions for fixed sized vectors of 512 bits.

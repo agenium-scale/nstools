@@ -56,6 +56,9 @@ std::ostream &operator<<(std::ostream &os, const infos_t &ci) {
   case compiler::infos_t::WASM:
     os << "Webassembly";
     break;
+  case compiler::infos_t::RISCV:
+    os << "RISC-V";
+    break;
   }
   os << " " << ns2::to_string(ci.nbits) << " bits";
   return os;
@@ -208,6 +211,12 @@ void get_archi_from_string(compiler::infos_t *ci_, std::string const &str) {
     ci.nbits = 32;
   } else if (str == "wasm64") {
     ci.arch = compiler::infos_t::WASM;
+    ci.nbits = 64;
+  } else if (str == "riscv32") {
+    ci.arch = compiler::infos_t::RISCV;
+    ci.nbits = 32;
+  } else if (str == "riscv64") {
+    ci.arch = compiler::infos_t::RISCV;
     ci.nbits = 64;
   } else {
     NS2_THROW(std::runtime_error, "Invalid architecture");
@@ -649,6 +658,8 @@ static void set_version_arch(infos_t *ci_, parser::infos_t *pi_) {
         "defined(__ppc64__) || defined(__powerpc64__)) && "
         "(defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__))\n"
         "printf(\"ppc64el\");\n"
+        "#elif defined(__riscv)"
+        "printf(\"riscv%d\", __riscv_xlen);\n"
         "#endif", verbosity);
     if (code.second) {
       NS2_THROW(std::runtime_error, "Cannot find " + get_type_str(ci.type) +

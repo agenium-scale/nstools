@@ -91,6 +91,8 @@ static void help(FILE *out) {
   "                    ppc64el  PowerPC 64-bits little entian\n"
   "                    wasm32   WebAssembly with 32-bits memory indexing\n"
   "                    wasm64   WebAssembly with 64-bits memory indexing\n"
+  "                    riscv32  RISC-V 32-bits\n"
+  "                    riscv64  RISC-V 64-bits\n"
   "                  Supported COMPILER:\n"
   "                    gcc, g++              GNU Compiler Collection\n"
   "                    clang, clang++        LLVM Compiler Infrastructure\n"

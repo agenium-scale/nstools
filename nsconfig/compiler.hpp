@@ -59,7 +59,7 @@ struct infos_t {
     DPCpp,
     Xlc
   } type;
-  enum arch_t { Intel, ARMEL, ARMHF, AARCH64, PPC64EL, WASM } arch;
+  enum arch_t { Intel, ARMEL, ARMHF, AARCH64, PPC64EL, WASM, RISCV } arch;
   enum lang_t { Unknown, C, CPP } lang;
   std::string name;
   std::string path;

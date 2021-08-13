@@ -775,6 +775,9 @@ gcc_clang(std::string const &compiler,
   } else if (ci.arch == compiler::infos_t::PPC64EL) {
     args["-mfma"] = "";
     args["-mfp16"] = "";
+  } else if (ci.arch == compiler::infos_t::RISCV) {
+    args["-mfma"] = "";
+    args["-mfp16"] = "";
   }
   args["-fopenmp"] = "-fopenmp";
   args["-shared"] = "-shared";

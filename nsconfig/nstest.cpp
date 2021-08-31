@@ -117,7 +117,7 @@ free_hStdOutput:
 }
 #else
 // On Unixes, I wanted to just close stdin (== 0) because nstest is supposed
-// to execite automatic tests that do not need any input. But many libraries,
+// to execute automatic tests that do not need any input. But many libraries,
 // programs require a valid input so stdin must be valid and we redirect it
 // from /dev/null.
 extern char **environ;
@@ -175,6 +175,8 @@ lbl_return:
 // the main thread wait for the spawned threads. Well that's a lot of code
 // and a lot of overhead just to get around this limitation and for now we
 // don't need it so we have not implemented it.
+// https://docs.microsoft.com/en-us/windows/win32/api
+//               /synchapi/nf-synchapi-waitformultipleobjects
 std::pair<pid_t, bool> wait_for_children(std::vector<pid_t> const &handles) {
   std::vector<pid_t> list;
   for (size_t i = 0; i < handles.size(); i++) {
@@ -223,6 +225,7 @@ int main2(int argc, char **argv) {
   int i0 = 1;
   size_t nb_threads = 1;
   verbose = 1;
+  bool force = false;
 
   // Special case of 0 argument
   if (argc == 1) {
@@ -237,6 +240,10 @@ int main2(int argc, char **argv) {
       help(stdout);
       fflush(stdout);
       return 0;
+    }
+    if (!strcmp(argv[i0], "-f")) {
+      force = true;
+      continue;
     }
     if (!memcmp(argv[i0], "--prefix=", 9)) {
       prefix = std::string(argv[i0] + 9) + " ";
@@ -262,8 +269,9 @@ int main2(int argc, char **argv) {
       nb_threads = size_t(atoi(argv[i0] + 2));
 #ifdef NS2_IS_MSVC
       if (nb_threads > MAXIMUM_WAIT_OBJECTS) {
-        NS2_THROW(std::runtime_error, "on windows, we cannot have more than "
-        + ns2::to_string(MAXIMUM_WAIT_OBJECTS) + " jobs");
+        NS2_THROW(std::runtime_error,
+                  "on windows, we cannot have more than " +
+                      ns2::to_string(MAXIMUM_WAIT_OBJECTS) + " jobs");
       }
 #endif
       continue;
@@ -289,7 +297,7 @@ int main2(int argc, char **argv) {
 
   // Keep only those that are executables
   for (size_t i = 0; i < globbed.size(); i++) {
-    if (ns2::isexe(globbed[i])) {
+    if (force || ns2::isexe(globbed[i])) {
 #ifdef NS2_IS_MSVC
       exes.push_back(prefix + globbed[i] + suffix);
 #else

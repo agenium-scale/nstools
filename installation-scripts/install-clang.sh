@@ -39,7 +39,7 @@ J="-j$(nproc)"
 mkdir -p ${WORK_DIR}
 
 URL_PREFIX=https://github.com/llvm/llvm-project/releases/download/llvmorg-${CLANG_VER}
-LLVM_PROJECT_XZ=llvm-project-${CLANG_VER}.tar.xz
+LLVM_PROJECT_XZ=llvm-project-${CLANG_VER}.src.tar.xz
 LLVM_PROJECT_DIR=$(basename ${LLVM_PROJECT_XZ} .tar.xz)
 
 # Delete previous attempts
@@ -61,6 +61,7 @@ mkdir -p "${BUILD_DIR}"
                             -DCMAKE_CXX_COMPILER=g++ \
                             -DCMAKE_INSTALL_PREFIX=${PREFIX} \
                             -DCMAKE_BUILD_TYPE=Release \
+                            -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;PowerPC" \
                             -DLLVM_ENABLE_PROJECTS="${PROJECTS}")
 (cd ${BUILD_DIR} && make ${J} && mysudo make install)
 

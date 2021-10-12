@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Agenium Scale
+// Copyright (c) 2021 Agenium Scale
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -733,8 +733,8 @@ gcc_clang(std::string const &compiler,
   args["-msve512"] = "-march=armv8.2-a+sve -msve-vector-bits=512";
   args["-msve1024"] = "-march=armv8.2-a+sve -msve-vector-bits=1024";
   args["-msve2048"] = "-march=armv8.2-a+sve -msve-vector-bits=2048";
-  args["-mvmx"] = "-mcpu=powerpc64le -maltivec";
-  args["-mvsx"] = "-mcpu=powerpc64le -mvsx";
+  args["-mvmx"] = "-maltivec";
+  args["-mvsx"] = "-mvsx";
   args["-mrvv"] = "";
   if (ci.type == compiler::infos_t::GCC) {
     args["-msm_35"] = "";

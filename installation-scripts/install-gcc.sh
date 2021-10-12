@@ -33,19 +33,27 @@ mysudo() {
 }
 
 # Set variables
+TARGET="${2}"
+if [ "${TARGET}" != "" ]; then
+  SYSROOT="--target=${TARGET} --with-sysroot=/"
+  MODULE_NAME="${TARGET}-gcc"
+else
+  SYSROOT=""
+  MODULE_NAME="gcc"
+fi
 MODULE_PATH_NULL=`module path null`
-MODULE_PATH="`dirname ${MODULE_PATH_NULL}`/gcc"
+MODULE_PATH="`dirname ${MODULE_PATH_NULL}`/${MODULE_NAME}"
 SVN_URL="https://gcc.gnu.org/svn/gcc/trunk" 
 WORK_DIR=tmp
 J="-j$(nproc)"
 if [ "${1}" = "trunk" ]; then
   GCC_VER="trunk"
   REV=`svn info ${SVN_URL} | grep Revision | cut -d' ' -f2`
-  PREFIX="/opt/local/gcc/trunk-${REV}"
+  PREFIX="/opt/local/${MODULE_NAME}/trunk-${REV}"
   MODULE_FILE=${MODULE_PATH}/trunk-${REV}
 else
   GCC_VER="${1}"
-  PREFIX="/opt/local/gcc/${GCC_VER}"
+  PREFIX="/opt/local/${MODULE_NAME}/${GCC_VER}"
   MODULE_FILE=${MODULE_PATH}/${GCC_VER}
 fi
 mkdir -p ${WORK_DIR}
@@ -99,7 +107,7 @@ rm -f ${WORK_DIR}/${TAR_GZ}
 rm -rf ${WORK_DIR}/${SRC_DIR}
 (cd ${WORK_DIR} && curl -L https://ftp.gnu.org/gnu/binutils/${TAR_GZ} -o ${TAR_GZ})
 (cd ${WORK_DIR} && tar xf ${TAR_GZ})
-(cd ${WORK_DIR}/${SRC_DIR} && ./configure --prefix="${PREFIX}" \
+(cd ${WORK_DIR}/${SRC_DIR} && ./configure --prefix="${PREFIX}" ${SYSROOT} \
                            && make ${J} \
                            && mysudo "make install")
 
@@ -130,28 +138,8 @@ else
 fi
 
 # Find target
-ARCH="$(uname -m)"
-if [ "${ARCH}" = "ppc64le" ]; then
-  ARCH="powerpc64le"
-fi
-TARGET="${ARCH}-linux-gnu"
-
-# Necessary exports for gcc
-export LD_LIBRARY_PATH="${PREFIX}/lib"
-
-export LIBRARY_PATH="${PREFIX}/lib"
-if [ -d /usr/lib/${TARGET} ]; then
-  export LIBRARY_PATH="${LIBRARY_PATH}:/usr/lib/${TARGET}"
-fi
-
-export C_INCLUDE_PATH="${PREFIX}/include"
-if [ -d /usr/include/${TARGET} ]; then
-  export C_INCLUDE_PATH="${C_INCLUDE_PATH}:/usr/include/${TARGET}"
-fi
-
-export CPLUS_INCLUDE_PATH="${PREFIX}/include"
-if [ -d /usr/include/${TARGET} ]; then
-  export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/include/${TARGET}"
+if [ "${TARGET}" != "" ]; then
+  SYSROOT="${SYSROOT} --with-native-system-header-dir=/usr/${TARGET}/include"
 fi
 
 # Specific flags w.r.t wanted version of GCC
@@ -198,13 +186,12 @@ mkdir -p ${BUILD_DIR}
                                  --with-gmp=${PREFIX} \
                                  --with-mpfr=${PREFIX} \
                                  --with-mpc=${PREFIX} \
-                                 --disable-multiarch \
+                                 ${SYSROOT} \
                                  --disable-multilib \
+                                 --enable-multiarch \
                                  ${CONFIGURE_FLAGS} \
                                  --enable-languages=c,c++,fortran \
-                                 --disable-bootstrap \
-                                 --build=${TARGET} \
-                                 --target=${TARGET})
+                                 --disable-bootstrap)
 (cd ${BUILD_DIR} && make ${J})
 (cd ${BUILD_DIR} && mysudo "make install")
 
@@ -225,17 +212,18 @@ module-whatis "Setup GCC ${GCC_VER}"
 
 prepend-path  PATH               ${PREFIX}/bin
 prepend-path  MANPATH            ${PREFIX}/share/man
-prepend-path  LD_LIBRARY_PATH    ${PREFIX}/lib64:${LD_LIBRARY_PATH}
-prepend-path  LIBRARY_PATH       ${LIBRARY_PATH}
-prepend-path  C_INCLUDE_PATH     ${C_INCLUDE_PATH}
-prepend-path  CPLUS_INCLUDE_PATH ${CPLUS_INCLUDE_PATH}
+prepend-path  LD_LIBRARY_PATH    ${PREFIX}/lib64
 EOF
 
 mysudo "cp ${WORK_DIR}/${SRC_DIR}/modulefile ${MODULE_FILE}"
 
 # Test whether it works
 
-GCC=${PREFIX}/bin/g++
+if [ "${TARGET}" != "" ]; then
+  GCC=${PREFIX}/bin/${TARGET}-g++
+else
+  GCC=${PREFIX}/bin/g++
+fi
 TMP_CPP=${WORK_DIR}/${SRC_DIR}/tmp.cpp
 
 cat >${TMP_CPP} <<EOF

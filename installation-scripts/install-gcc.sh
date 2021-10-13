@@ -213,6 +213,8 @@ module-whatis "Setup GCC ${GCC_VER}"
 prepend-path  PATH               ${PREFIX}/bin
 prepend-path  MANPATH            ${PREFIX}/share/man
 prepend-path  LD_LIBRARY_PATH    ${PREFIX}/lib64
+prepend-path  C_INCLUDE_PATH     ${PREFIX}/include
+prepend-path  CPLUS_INCLUDE_PATH ${PREFIX}/include
 EOF
 
 mysudo "cp ${WORK_DIR}/${SRC_DIR}/modulefile ${MODULE_FILE}"

@@ -1,5 +1,5 @@
 #!/bin/sh -e
-# Copyright (c) 2020 Agenium Scale
+# Copyright (c) 2021 Agenium Scale
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,7 @@ rm -f ${WORK_DIR}/${LLVM_PROJECT_XZ}
 (cd ${WORK_DIR} && tar xf ${LLVM_PROJECT_XZ})
 
 # Build LLVM and stuff
-PROJECTS="clang"
+PROJECTS="clang;lld"
 BUILD_DIR="${WORK_DIR}/${LLVM_PROJECT_DIR}/build"
 mkdir -p "${BUILD_DIR}"
 (cd "${BUILD_DIR}" && cmake ../llvm \
@@ -61,7 +61,7 @@ mkdir -p "${BUILD_DIR}"
                             -DCMAKE_CXX_COMPILER=g++ \
                             -DCMAKE_INSTALL_PREFIX=${PREFIX} \
                             -DCMAKE_BUILD_TYPE=Release \
-                            -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;PowerPC" \
+                            -DLLVM_TARGETS_TO_BUILD="X86;ARM;AArch64;PowerPC;WebAssembly" \
                             -DLLVM_ENABLE_PROJECTS="${PROJECTS}")
 (cd ${BUILD_DIR} && make ${J} && mysudo make install)
 

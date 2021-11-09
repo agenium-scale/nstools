@@ -45,6 +45,7 @@ struct json_parser_t {
   virtual bool new_number(cursor_t const &, double) = 0;
   virtual bool new_null(cursor_t const &) = 0;
   virtual bool new_boolean(cursor_t const &, bool) = 0;
+  virtual ~json_parser_t() {}
 };
 
 // ----------------------------------------------------------------------------

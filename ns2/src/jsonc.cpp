@@ -511,20 +511,32 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                 indent_str, indent_str);
         } else if (entry.type.text == "double") {
           print(&out,
-                "      out << @ << \": \"\n"
-                "          << std::setprecision(std::numeric_limits<\n"
-                "                               double>::digits10 + 1)\n"
-                "          << std::scientific << @.@;\n",
-                stringify(indent_str + key.text), prefix, key.cpp_text);
+                "      out << @ << \": \";\n"
+                "      if (std::abs(@.@) < double(MAX_INT) && \n"
+                "          double(int(@.@)) == @.@) {\n"
+                "        out << int(@.@);\n"
+                "      } else {\n"
+                "        out << std::setprecision(std::numeric_limits<\n"
+                "                                 double>::digits10 + 1)\n"
+                "            << std::scientific << @.@;\n"
+                "      }\n",
+                stringify(indent_str + key.text), prefix, key.cpp_text, prefix,
+                key.cpp_text, prefix, key.cpp_text, prefix, key.cpp_text,
+                prefix, key.cpp_text);
         } else if (entry.type.text == "vector_double") {
           print(&out,
                 "      out << @ << \": [\\n\";\n"
                 "      std::vector<double> const &v = @.@;\n"
                 "      for (size_t i = 0; i < v.size(); i++) {\n"
-                "        out << \"@  \"\n"
-                "            << std::setprecision(std::numeric_limits<\n"
-                "                                 double>::digits10 + 1)\n"
+                "        if (std::abs(v[i]) < double(MAX_INT) && \n"
+                "            double(int(v[i])) == v[i]) {\n"
+                "          out << int(v[i]);\n"
+                "        } else {\n"
+                "          out << \"@  \"\n"
+                "              << std::setprecision(std::numeric_limits<\n"
+                "                                   double>::digits10 + 1)\n"
                 "            << std::scientific << v[i];\n"
+                "        }\n"
                 "        if (i + 1 < v.size()) {\n"
                 "          out << \",\\n\";\n"
                 "        } else {\n"

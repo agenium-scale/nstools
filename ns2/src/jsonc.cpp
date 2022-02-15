@@ -512,7 +512,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
         } else if (entry.type.text == "double") {
           print(&out,
                 "      out << @ << \": \";\n"
-                "      if (std::abs(@.@) < double(MAX_INT) && \n"
+                "      if (std::abs(@.@) < double(INT_MAX) && \n"
                 "          double(int(@.@)) == @.@) {\n"
                 "        out << int(@.@);\n"
                 "      } else {\n"
@@ -528,7 +528,7 @@ static void dump_json_write_rec(std::ostream *out_, tree_t const &tree,
                 "      out << @ << \": [\\n\";\n"
                 "      std::vector<double> const &v = @.@;\n"
                 "      for (size_t i = 0; i < v.size(); i++) {\n"
-                "        if (std::abs(v[i]) < double(MAX_INT) && \n"
+                "        if (std::abs(v[i]) < double(INT_MAX) && \n"
                 "            double(int(v[i])) == v[i]) {\n"
                 "          out << int(v[i]);\n"
                 "        } else {\n"
